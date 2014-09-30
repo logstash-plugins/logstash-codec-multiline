@@ -118,9 +118,10 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
   public
   def register
     require "grok-pure" # rubygem 'jls-grok'
+    require 'logstash/patterns/core'
     # Detect if we are running from a jarfile, pick the right path.
     patterns_path = []
-    patterns_path += ["#{File.dirname(__FILE__)}/../../../patterns/*"]
+    patterns_path += [LogStash::Patterns::Core.path]
 
     @grok = Grok.new
 
