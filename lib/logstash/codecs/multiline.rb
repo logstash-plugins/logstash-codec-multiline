@@ -11,7 +11,7 @@ require "logstash/timestamp"
 # stacktrace messages into a single event.
 #
 # The config looks like this:
-#
+# [source,ruby]
 #     input {
 #       stdin {
 #         codec => multiline {
@@ -25,16 +25,16 @@ require "logstash/timestamp"
 # The `pattern` should match what you believe to be an indicator that the field
 # is part of a multi-line event.
 #
-# The `what` must be "previous" or "next" and indicates the relation
+# The `what` must be `previous` or `next` and indicates the relation
 # to the multi-line event.
 #
-# The `negate` can be "true" or "false" (defaults to "false"). If "true", a
+# The `negate` can be `true` or `false` (defaults to `false`). If `true`, a
 # message not matching the pattern will constitute a match of the multiline
 # filter and the `what` will be applied. (vice-versa is also true)
 #
 # For example, Java stack traces are multiline and usually have the message
 # starting at the far-left, with each subsequent line indented. Do this:
-#
+# [source,ruby]
 #     input {
 #       stdin {
 #         codec => multiline {
@@ -48,7 +48,7 @@ require "logstash/timestamp"
 #
 # Another example is to merge lines not starting with a date up to the previous
 # line..
-#
+# [source,ruby]
 #     input {
 #       file {
 #         path => "/var/log/someapp.log"
@@ -64,7 +64,7 @@ require "logstash/timestamp"
 # This says that any line not starting with a timestamp should be merged with the previous line.
 #
 # One more common example is C line continuations (backslash). Here's how to do that:
-#
+# [source,ruby]
 #     filter {
 #       multiline {
 #         type => "somefiletype"
@@ -94,21 +94,21 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
   # patterns.
   #
   # Pattern files are plain text with format:
-  #
+  # [source,ruby]
   #     NAME PATTERN
   #
   # For example:
-  #
+  # [source,ruby]
   #     NUMBER \d+
   config :patterns_dir, :validate => :array, :default => []
 
-  # The character encoding used in this input. Examples include "UTF-8"
-  # and "cp1252"
+  # The character encoding used in this input. Examples include `UTF-8`
+  # and `cp1252`
   #
-  # This setting is useful if your log files are in Latin-1 (aka cp1252)
-  # or in another character set other than UTF-8.
+  # This setting is useful if your log files are in `Latin-1` (aka `cp1252`)
+  # or in another character set other than `UTF-8`.
   #
-  # This only affects "plain" format logs since JSON is UTF-8 already.
+  # This only affects "plain" format logs since JSON is `UTF-8` already.
   config :charset, :validate => ::Encoding.name_list, :default => "UTF-8"
 
   # Tag multiline events with a given tag. This tag will only be added
