@@ -151,13 +151,15 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
   def decode(text, &block)
     text = @converter.convert(text)
 
-    match = @grok.match(text)
-    @logger.debug("Multiline", :pattern => @pattern, :text => text,
-                  :match => !match.nil?, :negate => @negate)
+    text.split("\n").each do |line|
+      match = @grok.match(line)
+      @logger.debug("Multiline", :pattern => @pattern, :text => line,
+                    :match => !match.nil?, :negate => @negate)
 
-    # Add negate option
-    match = (match and !@negate) || (!match and @negate)
-    @handler.call(text, match, &block)
+      # Add negate option
+      match = (match and !@negate) || (!match and @negate)
+      @handler.call(line, match, &block)
+    end
   end # def decode
 
   def buffer(text)
