@@ -38,6 +38,20 @@ describe LogStash::Codecs::Multiline do
       insist { events[1]["tags"] }.nil?
     end
 
+    it "should handle new lines in messages" do
+      codec = LogStash::Codecs::Multiline.new("pattern" => '^\s', "what" => "previous")
+      line = "one\ntwo\n  two.2\nthree\n"
+      events = []
+      codec.decode(line) do |event|
+        events << event
+      end
+      codec.flush { |e| events << e }
+      insist { events.size } == 3
+      insist { events[0]["message"] } == "one"
+      insist { events[1]["message"] } == "two\n  two.2"
+      insist { events[2]["message"] } == "three"
+    end
+
     it "should allow grok patterns to be used" do
       codec = LogStash::Codecs::Multiline.new(
         "pattern" => "^%{NUMBER} %{TIME}",
