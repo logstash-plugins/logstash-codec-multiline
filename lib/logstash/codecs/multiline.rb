@@ -78,7 +78,6 @@ require "logstash/timestamp"
 #
 class LogStash::Codecs::Multiline < LogStash::Codecs::Base
   config_name "multiline"
-  milestone 3
 
   # The regular expression to match.
   config :pattern, :validate => :string, :required => true
