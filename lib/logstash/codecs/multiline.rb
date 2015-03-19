@@ -118,6 +118,7 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
   def register
     require "grok-pure" # rubygem 'jls-grok'
     require 'logstash/patterns/core'
+    require "logstash/util/buftok"
     # Detect if we are running from a jarfile, pick the right path.
     patterns_path = []
     patterns_path += [LogStash::Patterns::Core.path]
