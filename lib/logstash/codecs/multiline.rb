@@ -118,6 +118,7 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
   def register
     require "grok-pure" # rubygem 'jls-grok'
     require 'logstash/patterns/core'
+    require "logstash/util/buftok"
     # Detect if we are running from a jarfile, pick the right path.
     patterns_path = []
     patterns_path += [LogStash::Patterns::Core.path]
@@ -139,7 +140,9 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
     @grok.compile(@pattern)
     @logger.debug("Registered multiline plugin", :type => @type, :config => @config)
 
-    @buffer = []
+	# BufferedTokenizer is used to correctly handle split packets
+    @buffer = FileWatch::BufferedTokenizer.new
+    @lines = []
     @handler = method("do_#{@what}".to_sym)
 
     @converter = LogStash::Util::Charset.new(@charset)
@@ -150,7 +153,8 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
   def decode(text, &block)
     text = @converter.convert(text)
 
-    text.split("\n").each do |line|
+    @buffer.extract(text).each do |line|
+      line = @converter.convert(line).gsub("\r","")
       match = @grok.match(line)
       @logger.debug("Multiline", :pattern => @pattern, :text => line,
                     :match => !match.nil?, :negate => @negate)
@@ -162,18 +166,18 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
   end # def decode
 
   def buffer(text)
-    @time = LogStash::Timestamp.now if @buffer.empty?
-    @buffer << text
+    @time = LogStash::Timestamp.now if @lines.empty?
+    @lines << text
   end
 
   def flush(&block)
-    if @buffer.any?
-      event = LogStash::Event.new(LogStash::Event::TIMESTAMP => @time, "message" => @buffer.join(NL))
+    if @lines.any?
+      event = LogStash::Event.new(LogStash::Event::TIMESTAMP => @time, "message" => @lines.join(NL))
       # Tag multiline events
-      event.tag @multiline_tag if @multiline_tag && @buffer.size > 1
+      event.tag @multiline_tag if @multiline_tag && @lines.size > 1
 
       yield event
-      @buffer = []
+      @lines = []
     end
   end
 
