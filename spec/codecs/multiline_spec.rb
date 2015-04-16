@@ -1,8 +1,8 @@
 # encoding: utf-8
-
 require "logstash/codecs/multiline"
 require "logstash/event"
 require "insist"
+require_relative "../supports/helpers.rb"
 
 describe LogStash::Codecs::Multiline do
   context "#decode" do
@@ -155,6 +155,54 @@ describe LogStash::Codecs::Multiline do
         end
       end
 
+    end
+  end
+
+  context "with non closed multiline events" do
+    let(:random_number_of_events) { rand(300..1000) }
+    let(:sample_event) { "- Sample event" }
+    let(:events) { decode_events }
+
+    context "break on maximum_lines" do let(:max_lines) { rand(10..100) }
+      let(:expected_events) {  (1.0 * random_number_of_events / max_lines).ceil }
+      let(:options) {
+        {
+          "pattern" => "^-",
+          "what" => "previous", 
+          "max_lines" => max_lines,
+          "max_bytes" => "2 mb"
+        }
+      }
+
+      it "flushes on a maximum lines" do
+        expect(events.size).to eq(expected_events)
+      end
+
+      it "tags the event" do
+        expect(events.first["tags"]).to include("multiline_over_buffer_limits")
+      end
+    end
+
+    context "break on maximum bytes" do
+      let(:max_bytes) { rand(30..100) }
+      let(:options) {
+        {
+          "pattern" => "^-",
+          "what" => "previous", 
+          "max_lines" => 20000,
+          "max_bytes" => max_bytes
+        }
+      }
+
+      it "flushes on a maximum bytes size" do
+        unmerged_events = events.collect { |event| event["message"].split(LogStash::Codecs::Multiline::NL).size }.inject(&:+)
+        expect(unmerged_events).to eq(random_number_of_events)
+      end
+
+      it "tags the event" do
+        events = decode_events
+        expect(events.first["tags"]).to include("multiline_over_buffer_limits")
+      end
     end
   end
 end
