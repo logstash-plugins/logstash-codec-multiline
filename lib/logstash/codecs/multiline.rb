@@ -114,10 +114,19 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
   # to events that actually have multiple lines in them.
   config :multiline_tag, :validate => :string, :default => "multiline"
 
+  # The accumulation of events can make logstash exit with an out of memory error
+  # if event boundaries are not correctly defined. This settings make sure to flush
+  # multiline events after reaching a number of lines
+  config :max_lines, :validate => :number, :default => 500
+
+  # Maximun size in bytes of the aggregated lines before flushing to queue
+  config :max_bytes, :validate => :bytes, :default => "1 MiB"
+
   public
   def register
     require "grok-pure" # rubygem 'jls-grok'
     require 'logstash/patterns/core'
+
     # Detect if we are running from a jarfile, pick the right path.
     patterns_path = []
     patterns_path += [LogStash::Patterns::Core.path]
@@ -139,14 +148,14 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
     @grok.compile(@pattern)
     @logger.debug("Registered multiline plugin", :type => @type, :config => @config)
 
-    @buffer = []
+    reset_buffer
+
     @handler = method("do_#{@what}".to_sym)
 
     @converter = LogStash::Util::Charset.new(@charset)
     @converter.logger = @logger
   end # def register
 
-  public
   def decode(text, &block)
     text = @converter.convert(text)
 
@@ -163,31 +172,43 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
 
   def buffer(text)
     @time = LogStash::Timestamp.now if @buffer.empty?
+    @buffer_bytes += text.bytesize
     @buffer << text
   end
 
   def flush(&block)
-    if @buffer.any?
-      event = LogStash::Event.new(LogStash::Event::TIMESTAMP => @time, "message" => @buffer.join(NL))
-      # Tag multiline events
-      event.tag @multiline_tag if @multiline_tag && @buffer.size > 1
-
-      yield event
-      @buffer = []
+    if @buffer.any? 
+      yield merge_events
+      reset_buffer
     end
+  end
+
+  def merge_events
+    event = LogStash::Event.new(LogStash::Event::TIMESTAMP => @time, "message" => @buffer.join(NL))
+    event.tag @multiline_tag if @multiline_tag && @buffer.size > 1
+    event.tag "multiline_over_buffer_limits" if buffer_over_limits?
+    event
+  end
+
+  def reset_buffer
+    @buffer = []
+    @buffer_bytes = 0
   end
 
   def do_next(text, matched, &block)
     buffer(text)
-    flush(&block) if !matched
+    flush(&block) if !matched || buffer_over_limits?
   end
 
   def do_previous(text, matched, &block)
-    flush(&block) if !matched
+    flush(&block) if !matched || buffer_over_limits?
     buffer(text)
   end
 
-  public
+  def buffer_over_limits?
+    @buffer.size > @max_lines || @buffer_bytes >= @max_bytes
+  end
+
   def encode(event)
     # Nothing to do.
     @on_event.call(event, event)
