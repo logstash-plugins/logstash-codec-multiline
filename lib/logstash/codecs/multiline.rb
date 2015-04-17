@@ -188,7 +188,8 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
   def merge_events
     event = LogStash::Event.new(LogStash::Event::TIMESTAMP => @time, "message" => @buffer.join(NL))
     event.tag @multiline_tag if @multiline_tag && @buffer.size > 1
-    event.tag "multiline_over_buffer_limits" if buffer_over_limits?
+    event.tag "multiline_codec_max_bytes_reached" if over_maximun_bytes?
+    event.tag "multiline_codec_max_lines_reached" if over_maximun_lines?
     event
   end
 
@@ -207,8 +208,16 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
     buffer(text)
   end
 
+  def over_maximun_lines?
+    @buffer.size > @max_lines 
+  end
+
+  def over_maximun_bytes?
+    @buffer_bytes >= @max_bytes
+  end
+
   def buffer_over_limits?
-    @buffer.size > @max_lines || @buffer_bytes >= @max_bytes
+    over_maximun_lines? || over_maximun_bytes?
   end
 
   def encode(event)
