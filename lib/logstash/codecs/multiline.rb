@@ -116,10 +116,14 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
 
   # The accumulation of events can make logstash exit with an out of memory error
   # if event boundaries are not correctly defined. This settings make sure to flush
-  # multiline events after reaching a number of lines
+  # multiline events after reaching a number of lines, it is used in combination
+  # max_bytes.
   config :max_lines, :validate => :number, :default => 500
 
-  # Maximun size in bytes of the aggregated lines before flushing to queue
+  # The accumulation of events can make logstash exit with an out of memory error
+  # if event boundaries are not correctly defined. This settings make sure to flush
+  # multiline events after reaching a number of bytes, it is used in combination
+  # max_lines.
   config :max_bytes, :validate => :bytes, :default => "1 MiB"
 
   public
