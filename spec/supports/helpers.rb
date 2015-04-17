@@ -1,5 +1,3 @@
-require "lib/logstash/codecs/multiline"
-
 def decode_events
   multiline =  LogStash::Codecs::Multiline.new(options)
 
