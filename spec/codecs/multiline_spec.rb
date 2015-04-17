@@ -176,9 +176,9 @@ describe LogStash::Codecs::Multiline do
     let(:random_number_of_events) { rand(300..1000) }
     let(:sample_event) { "- Sample event" }
     let(:events) { decode_events }
+    let(:unmerged_events_count) { events.collect { |event| event["message"].split(LogStash::Codecs::Multiline::NL).size }.inject(&:+) }
 
     context "break on maximum_lines" do let(:max_lines) { rand(10..100) }
-      let(:expected_events) {  (1.0 * random_number_of_events / max_lines).ceil }
       let(:options) {
         {
           "pattern" => "^-",
@@ -189,11 +189,11 @@ describe LogStash::Codecs::Multiline do
       }
 
       it "flushes on a maximum lines" do
-        expect(events.size).to eq(expected_events)
+        expect(unmerged_events_count).to eq(random_number_of_events)
       end
 
       it "tags the event" do
-        expect(events.first["tags"]).to include("multiline_over_buffer_limits")
+        expect(events.first["tags"]).to include("multiline_codec_max_lines_reached")
       end
     end
 
@@ -209,13 +209,11 @@ describe LogStash::Codecs::Multiline do
       }
 
       it "flushes on a maximum bytes size" do
-        unmerged_events = events.collect { |event| event["message"].split(LogStash::Codecs::Multiline::NL).size }.inject(&:+)
-        expect(unmerged_events).to eq(random_number_of_events)
+        expect(unmerged_events_count).to eq(random_number_of_events)
       end
 
       it "tags the event" do
-        events = decode_events
-        expect(events.first["tags"]).to include("multiline_over_buffer_limits")
+        expect(events.first["tags"]).to include("multiline_codec_max_bytes_reached")
       end
     end
   end
