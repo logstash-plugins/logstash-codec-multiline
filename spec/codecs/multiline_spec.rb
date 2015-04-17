@@ -178,7 +178,8 @@ describe LogStash::Codecs::Multiline do
     let(:events) { decode_events }
     let(:unmerged_events_count) { events.collect { |event| event["message"].split(LogStash::Codecs::Multiline::NL).size }.inject(&:+) }
 
-    context "break on maximum_lines" do let(:max_lines) { rand(10..100) }
+    context "break on maximum_lines" do
+      let(:max_lines) { rand(10..100) }
       let(:options) {
         {
           "pattern" => "^-",
