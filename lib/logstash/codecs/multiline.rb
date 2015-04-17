@@ -124,7 +124,7 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
   # if event boundaries are not correctly defined. This settings make sure to flush
   # multiline events after reaching a number of bytes, it is used in combination
   # max_lines.
-  config :max_bytes, :validate => :bytes, :default => "1 MiB"
+  config :max_bytes, :validate => :bytes, :default => "10 MiB"
 
   public
   def register
