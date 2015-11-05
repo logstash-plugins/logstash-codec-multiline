@@ -181,7 +181,7 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
   end
 
   def flush(&block)
-    if @buffer.any? 
+    if @buffer.any?
       yield merge_events
       reset_buffer
     end
@@ -211,7 +211,7 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
   end
 
   def over_maximun_lines?
-    @buffer.size > @max_lines 
+    @buffer.size > @max_lines
   end
 
   def over_maximun_bytes?
@@ -227,4 +227,4 @@ class LogStash::Codecs::Multiline < LogStash::Codecs::Base
     @on_event.call(event, event)
   end # def encode
 
-end # class LogStash::Codecs::Plain
+end # class LogStash::Codecs::Multiline
