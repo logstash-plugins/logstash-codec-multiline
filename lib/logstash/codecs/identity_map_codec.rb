@@ -101,7 +101,8 @@ module LogStash module Codecs class IdentityMapCodec
     @max_identities = MAX_IDENTITIES
     @evict_timeout = EVICT_TIMEOUT
     @cleaner = MapCleaner.new(self, CLEANER_INTERVAL)
-    @decode_block = lambda {|*| }
+    @decode_block = lambda {|*| true }
+    @eviction_block = nil
   end
 
   # ==============================================
@@ -124,6 +125,12 @@ module LogStash module Codecs class IdentityMapCodec
   def cleaner_interval(interval)
     @cleaner.stop
     @cleaner = MapCleaner.new(self, interval.to_i)
+    self
+  end
+
+  # used to add  a non-default eviction block
+  def eviction_block(block)
+    @eviction_block = block
     self
   end
   # end Constructional/builder methods
@@ -184,7 +191,7 @@ module LogStash module Codecs class IdentityMapCodec
     # contents should not mutate during this call
     identity_map.delete_if do |identity, compo|
       if (flag = compo.timeout <= cut_off)
-        compo.codec.flush(&@decode_block)
+        compo.codec.flush(&(@eviction_block || @decode_block))
       end
       flag
     end

@@ -18,7 +18,7 @@ class IdentityMapCodecTracer
   def clone() self.class.new; end
   def decode(data) @tracer.push [:decode, data]; end
   def encode(event) @tracer.push [:encode, event]; end
-  def flush(&block) @tracer.push [:flush, true]; end
+  def flush(&block) @tracer.push [:flush, block.call]; end
   def close() @tracer.push [:close, true]; end
   def logger() @logger ||= LogTracer.new; end
 
@@ -175,7 +175,7 @@ describe LogStash::Codecs::IdentityMapCodec do
           sleep(1.2)
           demuxer.decode(Object.new, "stream2")
           expect(demuxer.identity_count).to eq(limit)
-          expect { demuxer.decode(Object.new, "stream4") }.not_to raise_error
+          expect { demuxer.decode(Object.new, "stream4"){|*| 42 } }.not_to raise_error
         end
       end
     end
@@ -195,12 +195,27 @@ describe LogStash::Codecs::IdentityMapCodec do
   end
 
   describe "codec eviction" do
-    let(:demuxer) { described_class.new(codec).evict_timeout(1).cleaner_interval(1) }
     context "when an identity has become stale" do
+      let(:demuxer) { described_class.new(codec).evict_timeout(1).cleaner_interval(1) }
       it "the cleaner evicts the codec and flushes it first" do
-        demuxer.decode(Object.new, "stream1")
+        demuxer.decode(Object.new, "stream1"){|*| 42}
         sleep(2.1)
-        expect(codec.trace_for(:flush)).to be_truthy
+        expect(codec.trace_for(:flush)).to eq(42)
+        expect(demuxer.identity_map.keys).not_to include("stream1")
+      end
+    end
+
+    context "when an identity has become stale and an evition block is set" do
+      let(:demuxer) do
+        described_class.new(codec)
+        .evict_timeout(1)
+        .cleaner_interval(1)
+        .eviction_block(lambda {|*| 24} )
+      end
+      it "the cleaner evicts the codec and flushes it first using the eviction_block" do
+        demuxer.decode(Object.new, "stream1"){|*| 42}
+        sleep(2.1)
+        expect(codec.trace_for(:flush)).to eq(24)
         expect(demuxer.identity_map.keys).not_to include("stream1")
       end
     end

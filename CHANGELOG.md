@@ -1,3 +1,6 @@
+## 2.0.4
+ - Add constructional method to allow an eviction specific block to be set.
+
 ## 2.0.3
  - Add pseudo codec IdentityMapCodec.  Support class for identity based multiline processing.
 
