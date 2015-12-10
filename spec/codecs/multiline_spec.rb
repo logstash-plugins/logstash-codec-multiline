@@ -4,8 +4,44 @@ require "logstash/event"
 require "insist"
 require_relative "../supports/helpers.rb"
 
+module StringChunker
+  # Yield chunks of a string in random-lengthed chunks up to max_chunk_length in size.
+  def self.chunks(text, max_chunk_length, &block) 
+    return if text.nil?
+    len = rand(max_chunk_length)
+    yield text[0..len]
+    chunks(text[len+1..-1], max_chunk_length, &block)
+  end
+end
+
 describe LogStash::Codecs::Multiline do
   context "#decode" do
+    context "when receiving partial reads from a text stream" do
+      let(:payload) { [ "line 1", "line 2", "line 3", "line 4", "line 5", "END" ].join("\n") }
+      let(:length) { payload.size }
+      let(:codec) { LogStash::Codecs::Multiline.new("pattern" => "^END$", "negate" => true, "what" => "next") }
+      let(:chunks) { [] }
+
+      before do
+        # Split the payload into at least 5 randomly-sized chunks.
+        # This simulates fragmented reads of a multiline event
+        StringChunker.chunks(payload, length / 5) { |c| chunks << c }
+      end
+
+      it "should still work correctly" do
+        events = []
+        chunks.each do |chunk|
+          codec.decode(chunk) do |event|
+            events << event
+          end
+        end
+
+        codec.flush { |e| events << e }
+        expect(events.size).to eql(1)
+        expect(events.first["message"]).to eql(payload)
+      end
+    end
+
     it "should be able to handle multiline events with additional lines space-indented" do
       codec = LogStash::Codecs::Multiline.new("pattern" => "^\\s", "what" => "previous")
       lines = [ "hello world", "   second line", "another first line" ]
