@@ -1,3 +1,7 @@
+## 2.0.5
+ - Add auto_flush config option, with no default. If not set, no auto_flush is done.
+ - Add evict method to identity_map_codec that allows for an input, when done with an identity, to auto_flush and remove the identity from the map.
+
 ## 2.0.4
  - Add constructional method to allow an eviction specific block to be set.
 

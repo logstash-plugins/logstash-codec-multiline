@@ -1,32 +1,8 @@
 # encoding: utf-8
 require "logstash/devutils/rspec/spec_helper"
 require "logstash/codecs/identity_map_codec"
-
-class LogTracer
-  def initialize() @tracer = []; end
-  def warn(*args) @tracer.push [:warn, args]; end
-  def error(*args) @tracer.push [:error, args]; end
-
-  def trace_for(symbol)
-    params = @tracer.assoc(symbol)
-    params.nil? ? false : params.last
-  end
-end
-
-class IdentityMapCodecTracer
-  def initialize() @tracer = []; end
-  def clone() self.class.new; end
-  def decode(data) @tracer.push [:decode, data]; end
-  def encode(event) @tracer.push [:encode, event]; end
-  def flush(&block) @tracer.push [:flush, block.call]; end
-  def close() @tracer.push [:close, true]; end
-  def logger() @logger ||= LogTracer.new; end
-
-  def trace_for(symbol)
-    params = @tracer.assoc(symbol)
-    params.nil? ? false : params.last
-  end
-end
+require "logstash/codecs/multiline"
+require_relative "../supports/helpers.rb"
 
 describe LogStash::Codecs::IdentityMapCodec do
   let(:codec)   { IdentityMapCodecTracer.new }
@@ -217,6 +193,51 @@ describe LogStash::Codecs::IdentityMapCodec do
         sleep(2.1)
         expect(codec.trace_for(:flush)).to eq(24)
         expect(demuxer.identity_map.keys).not_to include("stream1")
+      end
+    end
+  end
+
+  describe "observer/listener based processing" do
+    let(:listener) { LineListener }
+    let(:queue)    { [] }
+    let(:identity) { "stream1" }
+    let(:config)   { {"pattern" => "^\\s", "what" => "previous"} }
+    let(:mlc) { MultilineRspec.new(config).tap {|c| c.register } }
+    let(:imc) { described_class.new(mlc) }
+
+    before do
+      listener = LineListener.new(queue, imc, identity)
+      listener.accept("foo")
+    end
+
+    describe "normal processing" do
+      context "when wrapped codec has auto-flush deactivated" do
+        it "no events are generated (the line is buffered)" do
+          expect(imc.identity_count).to eq(1)
+          expect(queue.size).to eq(0)
+          expect(mlc.internal_buffer[0]).to eq("foo")
+        end
+      end
+
+      context "when wrapped codec has auto-flush activated" do
+        let(:config) { {"pattern" => "^\\s", "what" => "previous", "auto_flush_interval" => 0.2} }
+        it "one event is generated" do
+          sleep 0.4
+          expect(queue.size).to eq(1)
+          expect(queue[0]["message"]).to eq("foo")
+          expect(imc.identity_count).to eq(1)
+        end
+      end
+    end
+
+    describe "evict method" do
+      context "when evicting and wrapped codec implements auto-flush" do
+        it "flushes and removes the identity" do
+          expect(imc.identity_count).to eq(1)
+          imc.evict(identity)
+          expect(queue[0]["message"]).to eq("foo")
+          expect(imc.identity_count).to eq(0)
+        end
       end
     end
   end
