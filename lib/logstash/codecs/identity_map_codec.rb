@@ -63,7 +63,7 @@ module LogStash module Codecs class IdentityMapCodec
     def stop
       return if !running?
       @running = false
-      @thread.wakeup
+      @thread.wakeup if @thread.alive?
     end
   end
 
@@ -137,10 +137,25 @@ module LogStash module Codecs class IdentityMapCodec
   # ==============================================
 
   # ==============================================
+  # IdentityMapCodec API
+  def evict(identity)
+    # maybe called more than once
+    if (compo = identity_map.delete(identity))
+      compo.codec.auto_flush if compo.codec.respond_to?(:auto_flush)
+    end
+  end
+  # end IdentityMapCodec API
+  # ==============================================
+
+  # ==============================================
   # Codec API
   def decode(data, identity = nil, &block)
     @decode_block = block if @decode_block != block
     stream_codec(identity).decode(data, &block)
+  end
+
+  def accept(listener)
+    stream_codec(listener.path).accept(listener)
   end
 
   alias_method :<<, :decode
@@ -149,16 +164,19 @@ module LogStash module Codecs class IdentityMapCodec
     stream_codec(identity).encode(event)
   end
 
-  # this method will not be called from
-  # the input or the pipeline unless
-  # we implement codec flush on shutdown
-  # problematic, because we may not have
-  # received all the multiline parts yet.
-  # but if we don't flush we will lose data
   def flush(&block)
     all_codecs.each do |codec|
       #let ruby do its default args thing
-      block.nil? ? codec.flush : codec.flush(&block)
+      if block_given?
+        codec.flush(&block)
+      else
+        if codec.respond_to?(:auto_flush)
+          codec.auto_flush
+        else
+          #try this, no guarantees
+          codec.flush
+        end
+      end
     end
   end
 
@@ -191,11 +209,22 @@ module LogStash module Codecs class IdentityMapCodec
     # contents should not mutate during this call
     identity_map.delete_if do |identity, compo|
       if (flag = compo.timeout <= cut_off)
-        compo.codec.flush(&(@eviction_block || @decode_block))
+        evict_flush(compo.codec)
       end
       flag
     end
     current_size_and_limit
+  end
+
+  def evict_flush(codec)
+    if codec.respond_to?(:auto_flush)
+      codec.auto_flush
+    else
+      if (block = @eviction_block || @decode_block)
+        codec.flush(&block)
+      end
+      # all else - can't do anything
+    end
   end
 
   def current_size_and_limit
