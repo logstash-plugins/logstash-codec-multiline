@@ -5,7 +5,7 @@ require "logstash/codecs/multiline"
 require_relative "../supports/helpers.rb"
 
 describe LogStash::Codecs::IdentityMapCodec do
-  let(:codec)   { IdentityMapCodecTracer.new }
+  let(:codec)   { Mlc::IdentityMapCodecTracer.new }
   let(:logger)  { codec.logger }
   let(:demuxer) { described_class.new(codec) }
   let(:stream1) { "stream-a" }
@@ -198,15 +198,15 @@ describe LogStash::Codecs::IdentityMapCodec do
   end
 
   describe "observer/listener based processing" do
-    let(:listener) { LineListener }
+    let(:listener) { Mlc::LineListener }
     let(:queue)    { [] }
     let(:identity) { "stream1" }
     let(:config)   { {"pattern" => "^\\s", "what" => "previous"} }
-    let(:mlc) { MultilineRspec.new(config).tap {|c| c.register } }
+    let(:mlc) { Mlc::MultilineRspec.new(config).tap {|c| c.register } }
     let(:imc) { described_class.new(mlc) }
 
     before do
-      listener = LineListener.new(queue, imc, identity)
+      listener = Mlc::LineListener.new(queue, imc, identity)
       listener.accept("foo")
     end
 

@@ -4,7 +4,7 @@ require "logstash/codecs/multiline"
 require_relative "../supports/helpers.rb"
 
 describe "AutoFlush and AutoFlushUnset" do
-  let(:flushable)  { AutoFlushTracer.new }
+  let(:flushable)  { Mlc::AutoFlushTracer.new }
   let(:flush_wait) { 0.1 }
 
   describe LogStash::Codecs::AutoFlush do

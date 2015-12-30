@@ -217,14 +217,14 @@ describe LogStash::Codecs::Multiline do
 
   describe "auto flushing" do
     let(:config) { {} }
-    let(:codec) { MultilineRspec.new(config).tap {|c| c.register} }
+    let(:codec) { Mlc::MultilineRspec.new(config).tap {|c| c.register} }
     let(:events) { [] }
     let(:lines) do
       { "en.log" => ["hello world", " second line", " third line"],
         "fr.log" => ["Salut le Monde", " deuxième ligne", " troisième ligne"],
         "de.log" => ["Hallo Welt"] }
     end
-    let(:listener_class) { LineListener }
+    let(:listener_class) { Mlc::LineListener }
     let(:auto_flush_interval) { 0.5 }
 
     let(:line_producer) do
@@ -249,12 +249,12 @@ describe LogStash::Codecs::Multiline do
 
     context "when the auto_flush raises an exception" do
       let(:errmsg) { "OMG, Daleks!" }
-      let(:listener_class) { LineErrorListener }
+      let(:listener_class) { Mlc::LineErrorListener }
 
       it "does not build any events, logs an error and the buffer data remains" do
         config.update("pattern" => "^\\s", "what" => "previous",
           "auto_flush_interval" => auto_flush_interval)
-        codec.logger = MultilineLogTracer.new
+        codec.logger = Mlc::MultilineLogTracer.new
         line_producer.call("en.log")
         sleep(auto_flush_interval + 0.1)
         msg, args = codec.logger.trace_for(:error)
