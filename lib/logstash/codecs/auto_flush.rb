@@ -7,18 +7,46 @@ module LogStash module Codecs class AutoFlush
     @stopped = Concurrent::AtomicBoolean.new # false by default
   end
 
+  # def start
+  #   # can't start if pipeline is stopping
+  #   return self if stopped?
+  #   if pending?
+  #     @task.cancel
+  #     create_task
+  #   elsif finished?
+  #     create_task
+  #   # else the task is executing
+  #   end
+  #   self
+  # end
+
   def start
     # can't start if pipeline is stopping
     return self if stopped?
-    if pending?
-      @task.reset
-    elsif finished?
-      @task = Concurrent::ScheduledTask.execute(@interval) do
-        @mc.auto_flush()
-      end
-    # else the task is executing
+
+    if pending? && @task.cancel
+      create_task
+      return self
     end
+    # maybe we have a timing edge case
+    # where pending? was true but cancel failed
+    # because the task started running
+    if finished?
+      create_task
+      return self
+    end
+    # else the task is executing
+    # wait for task to complete
+    # flush could feasibly block on queue access
+    @task.value
+    create_task
     self
+  end
+
+  def create_task
+    @task = Concurrent::ScheduledTask.execute(@interval) do
+      @mc.auto_flush()
+    end
   end
 
   def finished?
@@ -36,6 +64,10 @@ module LogStash module Codecs class AutoFlush
 
   def stop
     @stopped.make_true
+    cancel
+  end
+
+  def cancel
     @task.cancel if pending?
   end
 end
@@ -61,6 +93,10 @@ class AutoFlushUnset
   end
 
   def stop
+    self
+  end
+
+  def cancel
     self
   end
 end end end

@@ -129,7 +129,7 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
 
   # The accumulation of multiple lines will be converted to an event when either a
   # matching new line is seen or there has been no new data appended for this time
-  # auto_flush_interval. No default.  If unset, no auto_flush
+  # auto_flush_interval. No default.  If unset, no auto_flush. Units: seconds
   config :auto_flush_interval, :validate => :number
 
   public
@@ -195,10 +195,7 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
 
   def buffer(text)
     @buffer_bytes += text.bytesize
-    @buffer.push(text).tap do |b|
-      # do start but preserve the return value
-      auto_flush_runner.start
-    end
+    @buffer.push(text)
   end
 
   def flush(&block)
@@ -247,11 +244,13 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
 
   def do_next(text, matched, &block)
     buffer(text)
+    auto_flush_runner.start
     flush(&block) if !matched || buffer_over_limits?
   end
 
   def do_previous(text, matched, &block)
     flush(&block) if !matched || buffer_over_limits?
+    auto_flush_runner.start
     buffer(text)
   end
 

@@ -1,3 +1,6 @@
+## 2.0.7
+ - Fix for issue #23, Thread deadlock on auto-flush when using multiple inputs with this codec. Use cancel + execute on ScheduledTask instead of reset.
+
 ## 2.0.6
  - Isolate spec helper classes in their own namespace.
 
