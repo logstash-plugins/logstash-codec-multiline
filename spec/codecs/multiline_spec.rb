@@ -15,6 +15,7 @@ describe LogStash::Codecs::Multiline do
     let(:line_producer) do
       lambda do |lines|
         lines.each do |line|
+          line = "#{line}\n"
           codec.decode(line) do |event|
             events << event
           end
@@ -92,6 +93,7 @@ describe LogStash::Codecs::Multiline do
         config.update("pattern" => "^\\s", "what" => "previous")
         lines = [ "foobar", "κόσμε" ]
         lines.each do |line|
+          line = "#{line}\n"
           expect(line.encoding.name).to eq "UTF-8"
           expect(line.valid_encoding?).to be_truthy
           codec.decode(line) { |event| events << event }
@@ -109,6 +111,7 @@ describe LogStash::Codecs::Multiline do
         config.update("pattern" => "^\\s", "what" => "previous")
         lines = [ "foo \xED\xB9\x81\xC3", "bar \xAD" ]
         lines.each do |line|
+          line = "#{line}\n"
           expect(line.encoding.name).to eq "UTF-8"
           expect(line.valid_encoding?).to eq false
 
@@ -136,6 +139,7 @@ describe LogStash::Codecs::Multiline do
 
         # lines = [ "foo \xED\xB9\x81\xC3", "bar \xAD" ]
         samples.map{|(a, b)| a.force_encoding("ISO-8859-1")}.each do |line|
+          line = "#{line}\n".force_encoding("ISO-8859-1")
           expect(line.encoding.name).to eq "ISO-8859-1"
           expect(line.valid_encoding?).to eq true
 
@@ -162,6 +166,8 @@ describe LogStash::Codecs::Multiline do
         ]
         events = []
         samples.map{|(a, b)| a.force_encoding("ASCII-8BIT")}.each do |line|
+          line = "#{line}\n"
+          line.force_encoding("ASCII-8BIT")
           expect(line.encoding.name).to eq "ASCII-8BIT"
           expect(line.valid_encoding?).to eq true
 
@@ -182,7 +188,7 @@ describe LogStash::Codecs::Multiline do
 
   context "with non closed multiline events" do
     let(:random_number_of_events) { rand(300..1000) }
-    let(:sample_event) { "- Sample event" }
+    let(:sample_event) { "- Sample event\n" }
     let(:events) { decode_events }
     let(:unmerged_events_count) { events.collect { |event| event["message"].split(LogStash::Codecs::Multiline::NL).size }.inject(&:+) }
 
@@ -232,9 +238,11 @@ describe LogStash::Codecs::Multiline do
     let(:codec) { Mlc::MultilineRspec.new(config).tap {|c| c.register} }
     let(:events) { [] }
     let(:lines) do
-      { "en.log" => ["hello world", " second line", " third line"],
+      {
+        "en.log" => ["hello world", " second line", " third line"],
         "fr.log" => ["Salut le Monde", " deuxième ligne", " troisième ligne"],
-        "de.log" => ["Hallo Welt"] }
+        "de.log" => ["Hallo Welt"]
+      }
     end
     let(:listener_class) { Mlc::LineListener }
     let(:auto_flush_interval) { 0.5 }
@@ -244,7 +252,7 @@ describe LogStash::Codecs::Multiline do
         #create a listener that holds upstream state
         listener = listener_class.new(events, codec, path)
         lines[path].each do |data|
-          listener.accept(data)
+          listener.accept("#{data}\n")
         end
       end
     end
@@ -264,13 +272,17 @@ describe LogStash::Codecs::Multiline do
       let(:listener_class) { Mlc::LineErrorListener }
 
       it "does not build any events, logs an error and the buffer data remains" do
-        config.update("pattern" => "^\\s", "what" => "previous",
-          "auto_flush_interval" => auto_flush_interval)
+        config.update(
+          "pattern" => "^\\s",
+          "what" => "previous",
+          "auto_flush_interval" => auto_flush_interval
+        )
+
         codec.logger = Mlc::MultilineLogTracer.new
         line_producer.call("en.log")
         sleep(auto_flush_interval + 0.1)
         msg, args = codec.logger.trace_for(:error)
-        expect(msg).to eq("Multiline: flush downstream error")
+        expect(msg).to eq("Multiline: buffered events flush downstream error")
         expect(args[:exception].message).to eq(errmsg)
         expect(events.size).to eq(0)
         expect(codec.buffer_size).to eq(3)
@@ -286,8 +298,11 @@ describe LogStash::Codecs::Multiline do
 
     context "mode: previous, when there are pauses between multiline file writes" do
       it "auto-flushes events from the accumulated lines to the queue" do
-        config.update("pattern" => "^\\s", "what" => "previous",
-          "auto_flush_interval" => auto_flush_interval)
+        config.update(
+          "pattern" => "^\\s",
+          "what" => "previous",
+          "auto_flush_interval" => auto_flush_interval
+        )
 
         assert_produced_events("en.log", auto_flush_interval + 0.1) do
           expect(events[0]).to match_path_and_line("en.log", lines["en.log"])
