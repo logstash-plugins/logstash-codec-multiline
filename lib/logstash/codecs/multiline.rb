@@ -4,6 +4,10 @@ require "logstash/util/charset"
 require "logstash/timestamp"
 require "logstash/codecs/auto_flush"
 
+require "grok-pure"
+require 'logstash/patterns/core'
+require "logstash/util/buftok"
+
 # The multiline codec will collapse multiline messages and merge them into a
 # single event.
 #
@@ -132,19 +136,9 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   # auto_flush_interval. No default.  If unset, no auto_flush. Units: seconds
   config :auto_flush_interval, :validate => :number
 
-  public
-
   def register
-    require "grok-pure" # rubygem 'jls-grok'
-    require 'logstash/patterns/core'
-
-    # Detect if we are running from a jarfile, pick the right path.
-    patterns_path = []
-    patterns_path += [LogStash::Patterns::Core.path]
-
     @grok = Grok.new
-
-    @patterns_dir = patterns_path.to_a + @patterns_dir
+    @patterns_dir = [LogStash::Patterns::Core.path] + @patterns_dir
     @patterns_dir.each do |path|
       if ::File.directory?(path)
         path = ::File.join(path, "*")
@@ -169,33 +163,23 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
       # will start on first decode
       @auto_flush_runner = AutoFlush.new(self, @auto_flush_interval)
     end
-  end # def register
-
-  def accept(listener)
-    # memoize references to listener that holds upstream state
-    @previous_listener = @last_seen_listener || listener
-    @last_seen_listener = listener
-    decode(listener.data) do |event|
-      what_based_listener.process_event(event)
-    end
   end
 
   def decode(text, &block)
     text = @converter.convert(text)
     text.split("\n").each do |line|
       match = @grok.match(line)
-      @logger.debug("Multiline", :pattern => @pattern, :text => line,
-                    :match => !match.nil?, :negate => @negate)
+      @logger.debug("Multiline", :pattern => @pattern, :text => line, :match => !match.nil?, :negate => @negate)
 
       # Add negate option
       match = (match and !@negate) || (!match and @negate)
       @handler.call(line, match, &block)
     end
-  end # def decode
+  end
 
-  def buffer(text)
-    @buffer_bytes += text.bytesize
-    @buffer.push(text)
+  def encode(event)
+    # Nothing to do.
+    @on_event.call(event, event)
   end
 
   def flush(&block)
@@ -215,11 +199,45 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
     end
   end
 
+  def close
+    if auto_flush_runner.pending?
+      #will cancel task if necessary
+      auto_flush_runner.stop
+    end
+    auto_flush
+  end
+
+  def accept(listener)
+    # memoize references to listener that holds upstream state
+    @previous_listener = @last_seen_listener || listener
+    @last_seen_listener = listener
+    decode(listener.data) do |event|
+      what_based_listener.process_event(event)
+    end
+  end
+
+  def buffer(text)
+    @buffer_bytes += text.bytesize
+    @buffer.push(text)
+  end
+
+  def reset_buffer
+    @buffer = []
+    @buffer_bytes = 0
+  end
+
   def auto_flush
     flush do |event|
       @last_seen_listener.process_event(event)
     end
   end
+
+  # TODO: (colin) auto_flush_active? doesn't seem to be used anywhere. any reason to keep this api?
+  def auto_flush_active?
+    !@auto_flush_interval.nil?
+  end
+
+  private
 
   def merge_events
     event = LogStash::Event.new(LogStash::Event::TIMESTAMP => @time, "message" => @buffer.join(NL))
@@ -227,11 +245,6 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
     event.tag "multiline_codec_max_bytes_reached" if over_maximum_bytes?
     event.tag "multiline_codec_max_lines_reached" if over_maximum_lines?
     event
-  end
-
-  def reset_buffer
-    @buffer = []
-    @buffer_bytes = 0
   end
 
   def doing_previous?
@@ -266,24 +279,7 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
     over_maximum_lines? || over_maximum_bytes?
   end
 
-  def encode(event)
-    # Nothing to do.
-    @on_event.call(event, event)
-  end # def encode
-
-  def close
-    if auto_flush_runner.pending?
-      #will cancel task if necessary
-      auto_flush_runner.stop
-    end
-    auto_flush
-  end
-
-  def auto_flush_active?
-    !@auto_flush_interval.nil?
-  end
-
   def auto_flush_runner
     @auto_flush_runner || AutoFlushUnset.new(nil, nil)
   end
-end end end # class LogStash::Codecs::Multiline
+end end end
