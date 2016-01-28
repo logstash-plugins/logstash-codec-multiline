@@ -58,6 +58,18 @@ describe LogStash::Codecs::Multiline do
       expect(events[1]["message"]).to eq "0987654321"
     end
 
+    it "should handle message continuation across decode calls (i.e. use buftok)" do
+      config.update("pattern" => '\D', "what" => "previous")
+      lineio = StringIO.new("1234567890\nA234567890\nB234567890\n0987654321\n")
+      until lineio.eof
+        line = lineio.read(5)
+        codec.decode(line) {|evt| events.push(evt)}
+      end
+      codec.flush { |e| events << e }
+      expect(events[0]["message"]).to eq "1234567890\nA234567890\nB234567890"
+      expect(events[1]["message"]).to eq "0987654321"
+    end
+
     it "should allow grok patterns to be used" do
       config.update(
         "pattern" => "^%{NUMBER} %{TIME}",
