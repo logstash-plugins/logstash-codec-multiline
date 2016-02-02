@@ -58,6 +58,22 @@ describe LogStash::Codecs::Multiline do
       expect(events[1]["message"]).to eq "0987654321"
     end
 
+    it "should handle message continuation across decode calls (i.e. use buftok)" do
+      config.update(
+        "pattern" => '\D',
+        "what" => "previous",
+        "line_based_input" => false,
+      )
+      lineio = StringIO.new("1234567890\nA234567890\nB234567890\n0987654321\n")
+      until lineio.eof
+        line = lineio.read(5)
+        codec.decode(line) {|evt| events.push(evt)}
+      end
+      codec.flush { |e| events << e }
+      expect(events[0]["message"]).to eq "1234567890\nA234567890\nB234567890"
+      expect(events[1]["message"]).to eq "0987654321"
+    end
+
     it "should allow grok patterns to be used" do
       config.update(
         "pattern" => "^%{NUMBER} %{TIME}",
@@ -220,9 +236,11 @@ describe LogStash::Codecs::Multiline do
     let(:codec) { Mlc::MultilineRspec.new(config).tap {|c| c.register} }
     let(:events) { [] }
     let(:lines) do
-      { "en.log" => ["hello world", " second line", " third line"],
+      {
+        "en.log" => ["hello world", " second line", " third line"],
         "fr.log" => ["Salut le Monde", " deuxième ligne", " troisième ligne"],
-        "de.log" => ["Hallo Welt"] }
+        "de.log" => ["Hallo Welt"]
+      }
     end
     let(:listener_class) { Mlc::LineListener }
     let(:auto_flush_interval) { 0.5 }
@@ -252,13 +270,17 @@ describe LogStash::Codecs::Multiline do
       let(:listener_class) { Mlc::LineErrorListener }
 
       it "does not build any events, logs an error and the buffer data remains" do
-        config.update("pattern" => "^\\s", "what" => "previous",
-          "auto_flush_interval" => auto_flush_interval)
+        config.update(
+          "pattern" => "^\\s",
+          "what" => "previous",
+          "auto_flush_interval" => auto_flush_interval
+        )
+
         codec.logger = Mlc::MultilineLogTracer.new
         line_producer.call("en.log")
         sleep(auto_flush_interval + 0.1)
         msg, args = codec.logger.trace_for(:error)
-        expect(msg).to eq("Multiline: flush downstream error")
+        expect(msg).to eq("Multiline: buffered events flush downstream error")
         expect(args[:exception].message).to eq(errmsg)
         expect(events.size).to eq(0)
         expect(codec.buffer_size).to eq(3)
@@ -274,8 +296,11 @@ describe LogStash::Codecs::Multiline do
 
     context "mode: previous, when there are pauses between multiline file writes" do
       it "auto-flushes events from the accumulated lines to the queue" do
-        config.update("pattern" => "^\\s", "what" => "previous",
-          "auto_flush_interval" => auto_flush_interval)
+        config.update(
+          "pattern" => "^\\s",
+          "what" => "previous",
+          "auto_flush_interval" => auto_flush_interval
+        )
 
         assert_produced_events("en.log", auto_flush_interval + 0.1) do
           expect(events[0]).to match_path_and_line("en.log", lines["en.log"])
