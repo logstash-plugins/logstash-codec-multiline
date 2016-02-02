@@ -15,7 +15,6 @@ describe LogStash::Codecs::Multiline do
     let(:line_producer) do
       lambda do |lines|
         lines.each do |line|
-          line = "#{line}\n"
           codec.decode(line) do |event|
             events << event
           end
@@ -60,7 +59,11 @@ describe LogStash::Codecs::Multiline do
     end
 
     it "should handle message continuation across decode calls (i.e. use buftok)" do
-      config.update("pattern" => '\D', "what" => "previous")
+      config.update(
+        "pattern" => '\D',
+        "what" => "previous",
+        "line_based_input" => false,
+      )
       lineio = StringIO.new("1234567890\nA234567890\nB234567890\n0987654321\n")
       until lineio.eof
         line = lineio.read(5)
@@ -93,7 +96,6 @@ describe LogStash::Codecs::Multiline do
         config.update("pattern" => "^\\s", "what" => "previous")
         lines = [ "foobar", "κόσμε" ]
         lines.each do |line|
-          line = "#{line}\n"
           expect(line.encoding.name).to eq "UTF-8"
           expect(line.valid_encoding?).to be_truthy
           codec.decode(line) { |event| events << event }
@@ -111,7 +113,6 @@ describe LogStash::Codecs::Multiline do
         config.update("pattern" => "^\\s", "what" => "previous")
         lines = [ "foo \xED\xB9\x81\xC3", "bar \xAD" ]
         lines.each do |line|
-          line = "#{line}\n"
           expect(line.encoding.name).to eq "UTF-8"
           expect(line.valid_encoding?).to eq false
 
@@ -139,7 +140,6 @@ describe LogStash::Codecs::Multiline do
 
         # lines = [ "foo \xED\xB9\x81\xC3", "bar \xAD" ]
         samples.map{|(a, b)| a.force_encoding("ISO-8859-1")}.each do |line|
-          line = "#{line}\n".force_encoding("ISO-8859-1")
           expect(line.encoding.name).to eq "ISO-8859-1"
           expect(line.valid_encoding?).to eq true
 
@@ -166,8 +166,6 @@ describe LogStash::Codecs::Multiline do
         ]
         events = []
         samples.map{|(a, b)| a.force_encoding("ASCII-8BIT")}.each do |line|
-          line = "#{line}\n"
-          line.force_encoding("ASCII-8BIT")
           expect(line.encoding.name).to eq "ASCII-8BIT"
           expect(line.valid_encoding?).to eq true
 
@@ -188,7 +186,7 @@ describe LogStash::Codecs::Multiline do
 
   context "with non closed multiline events" do
     let(:random_number_of_events) { rand(300..1000) }
-    let(:sample_event) { "- Sample event\n" }
+    let(:sample_event) { "- Sample event" }
     let(:events) { decode_events }
     let(:unmerged_events_count) { events.collect { |event| event["message"].split(LogStash::Codecs::Multiline::NL).size }.inject(&:+) }
 
@@ -252,7 +250,7 @@ describe LogStash::Codecs::Multiline do
         #create a listener that holds upstream state
         listener = listener_class.new(events, codec, path)
         lines[path].each do |data|
-          listener.accept("#{data}\n")
+          listener.accept(data)
         end
       end
     end

@@ -118,6 +118,10 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   # Change the delimiter that separates lines
   config :delimiter, :validate => :string, :default => "\n"
 
+  # Assume data received from input plugin as line based. For some input plugins
+  # like stdin or tcp/udp data is not line based and this option should be set to false.
+  config :line_based_input, :validate => :boolean, :default  => true
+
   # Tag multiline events with a given tag. This tag will only be added
   # to events that actually have multiple lines in them.
   config :multiline_tag, :validate => :string, :default => "multiline"
@@ -183,6 +187,8 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   end
 
   def decode(data, &block)
+    data = data + @delimiter if @line_based_input
+
     @tokenizer.extract(data.force_encoding("ASCII-8BIT")).each do |line|
       match_line(@converter.convert(line), &block)
     end
