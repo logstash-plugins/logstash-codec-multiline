@@ -171,6 +171,12 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
     end
   end # def register
 
+  def use_mapper_auto_flush
+    return unless auto_flush_active?
+    @auto_flush_runner = AutoFlushUnset.new(nil, nil)
+    @auto_flush_interval = @auto_flush_interval.to_f
+  end
+
   def accept(listener)
     # memoize references to listener that holds upstream state
     @previous_listener = @last_seen_listener || listener
@@ -215,9 +221,11 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
     end
   end
 
-  def auto_flush
+  def auto_flush(listener = @last_seen_listener)
+    return if listener.nil?
+
     flush do |event|
-      @last_seen_listener.process_event(event)
+      listener.process_event(event)
     end
   end
 
@@ -272,11 +280,7 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   end # def encode
 
   def close
-    if auto_flush_runner.pending?
-      #will cancel task if necessary
-      auto_flush_runner.stop
-    end
-    auto_flush
+    auto_flush_runner.stop
   end
 
   def auto_flush_active?

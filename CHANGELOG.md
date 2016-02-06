@@ -1,3 +1,6 @@
+## 2.0.8
+ - Fix for issue #28, Memory leak when using cancel + execute on ScheduledTask.
+
 ## 2.0.7
  - Fix for issue #23, Thread deadlock on auto-flush when using multiple inputs with this codec. Use cancel + execute on ScheduledTask instead of reset.
 

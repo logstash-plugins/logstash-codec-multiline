@@ -225,7 +225,7 @@ describe LogStash::Codecs::Multiline do
         "de.log" => ["Hallo Welt"] }
     end
     let(:listener_class) { Mlc::LineListener }
-    let(:auto_flush_interval) { 0.5 }
+    let(:auto_flush_interval) { 2 }
 
     let(:line_producer) do
       lambda do |path|
