@@ -164,6 +164,16 @@ module LogStash module Codecs class IdentityMapCodec
     stream_codec(identity).encode(event)
   end
 
+  def flush_mapped(listener)
+    listener_has_path = listener.respond_to?(:path)
+    identity_map.each do |identity, compo|
+      listener.path = identity if listener_has_path
+      compo.codec.flush do |event|
+        listener.process_event(event) rescue nil
+      end
+    end
+  end
+
   def flush(&block)
     all_codecs.each do |codec|
       #let ruby do its default args thing
