@@ -12,6 +12,15 @@ describe LogStash::Codecs::IdentityMapCodec do
   let(:codec1)  { demuxer.codec_without_usage_update(stream1) }
   let(:arg1)    { "data-a" }
 
+  before(:all) do
+    @thread_abort = Thread.abort_on_exception
+    Thread.abort_on_exception = true
+  end
+
+  after(:all) do
+    Thread.abort_on_exception = @thread_abort
+  end
+
   after do
     codec.close
   end
@@ -206,8 +215,7 @@ describe LogStash::Codecs::IdentityMapCodec do
     let(:imc) { described_class.new(mlc) }
 
     before do
-      listener = Mlc::LineListener.new(queue, imc, identity)
-      listener.accept("foo")
+      l_0 = Mlc::LineListener.new(queue, imc, identity).tap {|o| o.accept("foo")}
     end
 
     describe "normal processing" do
@@ -221,11 +229,23 @@ describe LogStash::Codecs::IdentityMapCodec do
 
       context "when wrapped codec has auto-flush activated" do
         let(:config) { {"pattern" => "^\\s", "what" => "previous", "auto_flush_interval" => 0.2} }
-        it "one event is generated" do
-          sleep 0.4
-          expect(queue.size).to eq(1)
-          expect(queue[0]["message"]).to eq("foo")
-          expect(imc.identity_count).to eq(1)
+        before do
+          l_1 = Mlc::LineListener.new(queue, imc, "stream2").tap {|o| o.accept("bar")}
+          l_2 = Mlc::LineListener.new(queue, imc, "stream3").tap {|o| o.accept("baz")}
+        end
+        it "three events are auto flushed from three different identities/codecs" do
+          sleep 0.6 # wait for auto_flush - in multiples of 0.5 plus 0.1
+          expect(queue.size).to eq(3)
+          e1, e2, e3 = queue
+          expect(e1["path"]).to eq("stream1")
+          expect(e1["message"]).to eq("foo")
+
+          expect(e2["path"]).to eq("stream2")
+          expect(e2["message"]).to eq("bar")
+
+          expect(e3["path"]).to eq("stream3")
+          expect(e3["message"]).to eq("baz")
+          expect(imc.identity_count).to eq(3)
         end
       end
     end

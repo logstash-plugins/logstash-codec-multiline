@@ -73,6 +73,10 @@ module Mlc
       params.nil? ? false : params.last
     end
 
+    def full_trace_for(symbol)
+      @tracer.select{|array| array[0] == symbol}.map(&:last)
+    end
+
     def clear()
       @tracer.clear()
     end
@@ -91,7 +95,16 @@ module Mlc
   end
 
   class AutoFlushTracer < TracerBase
-    def auto_flush() @tracer.push [:auto_flush, true]; end
+    def auto_flush() simulate_execution_delay; @tracer.push [:auto_flush, true]; end
+    def set_delay(delay)
+      @delay = delay
+    end
+
+    def simulate_execution_delay
+      return if @delay.nil? || @delay.zero?
+      sleep @delay
+      @tracer.push [:delay, Time.now.to_f]
+    end
   end
 
   class IdentityMapCodecTracer < TracerBase
