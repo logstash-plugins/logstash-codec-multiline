@@ -216,6 +216,8 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   end
 
   def auto_flush
+    return if @last_seen_listener.nil?
+
     flush do |event|
       @last_seen_listener.process_event(event)
     end
@@ -276,7 +278,6 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
       #will cancel task if necessary
       auto_flush_runner.stop
     end
-    auto_flush
   end
 
   def auto_flush_active?
