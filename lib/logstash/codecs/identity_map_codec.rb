@@ -329,7 +329,11 @@ module LogStash module Codecs class IdentityMapCodec
   def codec_builder(hash, k)
     codec = hash.empty? ? @base_codec : @base_codec.clone
     codec.use_mapper_auto_flush if using_mapped_auto_flush?
-    compo = CodecValue.new(codec)
+    compo = CodecValue.new(codec).tap do |o|
+      now = Time.now
+      o.eviction_timeout = eviction_timestamp(now)
+      o.auto_flush_timeout = auto_flush_timestamp(now)
+    end
     hash.store(k, compo)
   end
 

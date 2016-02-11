@@ -1,3 +1,6 @@
+## 2.0.9
+ - Fix for issue #30, eviction_timeout nil when cleaner thread is doing map cleanup.
+
 ## 2.0.8
  - Fix for issue #28, Memory leak when using cancel + execute on ScheduledTask.
 
