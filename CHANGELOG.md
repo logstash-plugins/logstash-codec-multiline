@@ -1,3 +1,5 @@
+# 2.0.10
+  - New dependency requirements for logstash-core for the 5.0 release
 ## 2.0.9
  - Fix for issue #30, eviction_timeout nil when cleaner thread is doing map cleanup.
 
