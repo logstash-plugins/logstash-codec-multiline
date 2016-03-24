@@ -1,3 +1,5 @@
+# 2.0.11
+  - Depend on logstash-core-plugin-api instead of logstash-core, removing the need to mass update plugins on major releases of logstash
 # 2.0.10
   - New dependency requirements for logstash-core for the 5.0 release
 ## 2.0.9
