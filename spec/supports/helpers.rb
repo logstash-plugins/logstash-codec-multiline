@@ -33,7 +33,7 @@ module Mlc
     end
 
     def process_event(event)
-      event["path"] = path
+      event.set("path", path)
       @queue << event
     end
 
@@ -129,10 +129,10 @@ end
 
 RSpec::Matchers.define(:match_path_and_line) do |path, line|
   match do |actual|
-    actual["path"] == path && actual["message"] == line.join($/)
+    actual.get("path") == path && actual.get("message") == line.join($/)
   end
 
   failure_message do
-    "Expecting #{actual['path']} to equal `#{path}` and #{actual["message"]} to equal #{line.join($/)}"
+    "Expecting #{actual.get('path')} to equal `#{path}` and #{actual.get("message")} to equal #{line.join($/)}"
   end
 end
