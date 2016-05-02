@@ -29,10 +29,10 @@ describe LogStash::Codecs::Multiline do
       codec.flush { |e| events << e }
 
       expect(events.size).to eq(2)
-      expect(events[0]["message"]).to eq "hello world\n   second line"
-      expect(events[0]["tags"]).to include("multiline")
-      expect(events[1]["message"]).to eq "another first line"
-      expect(events[1]["tags"]).to be_nil
+      expect(events[0].get("message")).to eq "hello world\n   second line"
+      expect(events[0].get("tags")).to include("multiline")
+      expect(events[1].get("message")).to eq "another first line"
+      expect(events[1].get("tags")).to be_nil
     end
 
     it "should allow custom tag added to multiline events" do
@@ -42,8 +42,8 @@ describe LogStash::Codecs::Multiline do
       codec.flush { |e| events << e }
 
       expect(events.size).to eq 2
-      expect(events[0]["tags"]).to include("hurray")
-      expect(events[1]["tags"]).to be_nil
+      expect(events[0].get("tags")).to include("hurray")
+      expect(events[1].get("tags")).to be_nil
     end
 
     it "should handle new lines in messages" do
@@ -54,8 +54,8 @@ describe LogStash::Codecs::Multiline do
         codec.decode(line) {|evt| events.push(evt)}
       end
       codec.flush { |e| events << e }
-      expect(events[0]["message"]).to eq "1234567890\nA234567890\nB234567890"
-      expect(events[1]["message"]).to eq "0987654321"
+      expect(events[0].get("message")).to eq "1234567890\nA234567890\nB234567890"
+      expect(events[1].get("message")).to eq "0987654321"
     end
 
     it "should allow grok patterns to be used" do
@@ -71,7 +71,7 @@ describe LogStash::Codecs::Multiline do
       codec.flush { |e| events << e }
 
       insist { events.size } == 1
-      insist { events.first["message"] } == lines.join("\n")
+      insist { events.first.get("message") } == lines.join("\n")
     end
 
     context "using default UTF-8 charset" do
@@ -88,8 +88,8 @@ describe LogStash::Codecs::Multiline do
         expect(events.size).to eq 2
 
         events.zip(lines).each do |tuple|
-          expect(tuple[0]["message"]).to eq tuple[1]
-          expect(tuple[0]["message"].encoding.name).to eq "UTF-8"
+          expect(tuple[0].get("message")).to eq tuple[1]
+          expect(tuple[0].get("message").encoding.name).to eq "UTF-8"
         end
       end
 
@@ -106,8 +106,8 @@ describe LogStash::Codecs::Multiline do
         expect(events.size).to eq 2
 
         events.zip(lines).each do |tuple|
-          expect(tuple[0]["message"]).to eq tuple[1].inspect[1..-2]
-          expect(tuple[0]["message"].encoding.name).to eq "UTF-8"
+          expect(tuple[0].get("message")).to eq tuple[1].inspect[1..-2]
+          expect(tuple[0].get("message").encoding.name).to eq "UTF-8"
         end
       end
     end
@@ -134,8 +134,8 @@ describe LogStash::Codecs::Multiline do
 
         events.zip(samples.map{|(a, b)| b}).each do |tuple|
           expect(tuple[1].encoding.name).to eq "UTF-8"
-          expect(tuple[0]["message"]).to eq tuple[1]
-          expect(tuple[0]["message"].encoding.name).to eq "UTF-8"
+          expect(tuple[0].get("message")).to eq tuple[1]
+          expect(tuple[0].get("message").encoding.name).to eq "UTF-8"
         end
       end
     end
@@ -160,8 +160,8 @@ describe LogStash::Codecs::Multiline do
 
         events.zip(samples.map{|(a, b)| b}).each do |tuple|
           expect(tuple[1].encoding.name).to eq "UTF-8"
-          expect(tuple[0]["message"]).to eq tuple[1]
-          expect(tuple[0]["message"].encoding.name).to eq "UTF-8"
+          expect(tuple[0].get("message")).to eq tuple[1]
+          expect(tuple[0].get("message").encoding.name).to eq "UTF-8"
         end
       end
 
@@ -172,7 +172,7 @@ describe LogStash::Codecs::Multiline do
     let(:random_number_of_events) { rand(300..1000) }
     let(:sample_event) { "- Sample event" }
     let(:events) { decode_events }
-    let(:unmerged_events_count) { events.collect { |event| event["message"].split(LogStash::Codecs::Multiline::NL).size }.inject(&:+) }
+    let(:unmerged_events_count) { events.collect { |event| event.get("message").split(LogStash::Codecs::Multiline::NL).size }.inject(&:+) }
 
     context "break on maximum_lines" do
       let(:max_lines) { rand(10..100) }
@@ -190,7 +190,7 @@ describe LogStash::Codecs::Multiline do
       end
 
       it "tags the event" do
-        expect(events.first["tags"]).to include("multiline_codec_max_lines_reached")
+        expect(events.first.get("tags")).to include("multiline_codec_max_lines_reached")
       end
     end
 
@@ -210,7 +210,7 @@ describe LogStash::Codecs::Multiline do
       end
 
       it "tags the event" do
-        expect(events.first["tags"]).to include("multiline_codec_max_bytes_reached")
+        expect(events.first.get("tags")).to include("multiline_codec_max_bytes_reached")
       end
     end
   end

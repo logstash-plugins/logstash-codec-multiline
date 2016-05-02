@@ -237,14 +237,14 @@ describe LogStash::Codecs::IdentityMapCodec do
           sleep 0.6 # wait for auto_flush - in multiples of 0.5 plus 0.1
           expect(queue.size).to eq(3)
           e1, e2, e3 = queue
-          expect(e1["path"]).to eq("stream1")
-          expect(e1["message"]).to eq("foo")
+          expect(e1.get("path")).to eq("stream1")
+          expect(e1.get("message")).to eq("foo")
 
-          expect(e2["path"]).to eq("stream2")
-          expect(e2["message"]).to eq("bar")
+          expect(e2.get("path")).to eq("stream2")
+          expect(e2.get("message")).to eq("bar")
 
-          expect(e3["path"]).to eq("stream3")
-          expect(e3["message"]).to eq("baz")
+          expect(e3.get("path")).to eq("stream3")
+          expect(e3.get("message")).to eq("baz")
           expect(imc.identity_count).to eq(3)
         end
       end
@@ -255,7 +255,7 @@ describe LogStash::Codecs::IdentityMapCodec do
         it "flushes and removes the identity" do
           expect(imc.identity_count).to eq(1)
           imc.evict(identity)
-          expect(queue[0]["message"]).to eq("foo")
+          expect(queue[0].get("message")).to eq("foo")
           expect(imc.identity_count).to eq(0)
         end
       end
