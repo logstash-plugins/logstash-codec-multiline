@@ -162,6 +162,7 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
     reset_buffer
 
     @handler = method("do_#{@what}".to_sym)
+    @last_seen_block = nil
 
     @converter = LogStash::Util::Charset.new(@charset)
     @converter.logger = @logger
@@ -178,15 +179,13 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   end
 
   def accept(listener)
-    # memoize references to listener that holds upstream state
-    @previous_listener = @last_seen_listener || listener
-    @last_seen_listener = listener
     decode(listener.data) do |event|
-      what_based_listener.process_event(event)
+      listener.process_event(event)
     end
   end
 
   def decode(text, &block)
+    @last_seen_block = block
     text = @converter.convert(text)
     text.split("\n").each do |line|
       match = @grok.match(line)
@@ -221,12 +220,9 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
     end
   end
 
-  def auto_flush(listener = @last_seen_listener)
-    return if listener.nil?
-
-    flush do |event|
-      listener.process_event(event)
-    end
+  def auto_flush(block = @last_seen_block)
+    return if block.nil?
+    flush(&block)
   end
 
   def merge_events
@@ -244,10 +240,6 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
 
   def doing_previous?
     @what == "previous"
-  end
-
-  def what_based_listener
-    doing_previous? ? @previous_listener : @last_seen_listener
   end
 
   def do_next(text, matched, &block)
