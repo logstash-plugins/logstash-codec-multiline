@@ -187,8 +187,25 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   end
 
   def decode(text, &block)
-    text = @converter.convert(text)
-    text.split("\n").each do |line|
+    parts = text.split("\n")
+
+    # oftentimes the sysread done by the input plugin
+    # is not perfectly aligned with newlines. In these
+    # cases (no newline at string ending) we keep that part
+    # as a carry over and will reattach it at the next
+    # decode call
+
+    if @carry_over
+      parts[0] = @carry_over + parts[0]
+      @carry_over = nil
+    end
+
+    unless text =~ /\n\Z/
+      @carry_over = parts.pop
+    end
+
+    parts.each do |line|
+      line = @converter.convert(line)
       match = @grok.match(line)
       @logger.debug("Multiline", :pattern => @pattern, :text => line,
                     :match => !match.nil?, :negate => @negate)
