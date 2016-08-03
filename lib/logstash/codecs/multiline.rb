@@ -57,7 +57,7 @@ require "logstash/codecs/auto_flush"
 #           # Grok pattern names are valid! :)
 #           pattern => "^%{TIMESTAMP_ISO8601} "
 #           negate => true
-#           what => previous
+#           what => "previous"
 #         }
 #       }
 #     }
