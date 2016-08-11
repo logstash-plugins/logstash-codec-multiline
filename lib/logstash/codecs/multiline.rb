@@ -4,6 +4,10 @@ require "logstash/util/charset"
 require "logstash/timestamp"
 require "logstash/codecs/auto_flush"
 
+# NOTE: Consider use `multiline` in `filebeat` configuration or you will not
+# be able to scale `logstash` workers because of this error: `Defaulting pipeline 
+# worker threads to 1 because there are some filters that might not work with multiple worker threads`
+# 
 # The multiline codec will collapse multiline messages and merge them into a
 # single event.
 #
