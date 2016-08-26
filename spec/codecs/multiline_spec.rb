@@ -217,7 +217,6 @@ describe LogStash::Codecs::Multiline do
 
   describe "auto flushing" do
     let(:config) { {} }
-    let(:codec) { Mlc::MultilineRspec.new(config).tap {|c| c.register} }
     let(:events) { [] }
     let(:lines) do
       { "en.log" => ["hello world", " second line", " third line"],
@@ -237,6 +236,14 @@ describe LogStash::Codecs::Multiline do
       end
     end
 
+    let(:codec) do
+      Mlc::MultilineRspec.new(config).tap {|c| c.register}
+    end
+
+    before :each do
+      expect(LogStash::Codecs::Multiline).to receive(:logger).and_return(Mlc::MultilineLogTracer.new).at_least(:once)
+    end
+
     context "when auto_flush_interval is not set" do
       it "does not build any events" do
         config.update("pattern" => "^\\s", "what" => "previous")
@@ -254,9 +261,8 @@ describe LogStash::Codecs::Multiline do
       it "does not build any events, logs an error and the buffer data remains" do
         config.update("pattern" => "^\\s", "what" => "previous",
           "auto_flush_interval" => auto_flush_interval)
-        codec.logger = Mlc::MultilineLogTracer.new
         line_producer.call("en.log")
-        sleep(auto_flush_interval + 0.1)
+        sleep(auto_flush_interval + 0.2)
         msg, args = codec.logger.trace_for(:error)
         expect(msg).to eq("Multiline: flush downstream error")
         expect(args[:exception].message).to eq(errmsg)
