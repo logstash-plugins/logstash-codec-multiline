@@ -1,4 +1,7 @@
 ## 3.0.2
+  - Fix log levels
+
+## 3.0.2
   - Relax constraint on logstash-core-plugin-api to >= 1.60 <= 2.99
 
 ## 3.0.1
