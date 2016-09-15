@@ -87,11 +87,13 @@ module Mlc
     def error(*args) @tracer.push [:error, args]; end
     def debug(*args) @tracer.push [:debug, args]; end
     def info(*args) @tracer.push [:info, args]; end
+    def trace(*args) @tracer.push [:trace, args]; end
 
     def info?() true; end
     def debug?() true; end
     def warn?() true; end
     def error?() true; end
+    def trace?() true; end
   end
 
   class AutoFlushTracer < TracerBase
