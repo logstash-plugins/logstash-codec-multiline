@@ -151,13 +151,13 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
       end
 
       Dir.glob(path).each do |file|
-        @logger.info("Grok loading patterns from file", :path => file)
+        @logger.debug("Grok loading patterns from file", :path => file)
         @grok.add_patterns_from_file(file)
       end
     end
 
     @grok.compile(@pattern)
-    @logger.debug("Registered multiline plugin", :type => @type, :config => @config)
+    @logger.trace("Registered multiline plugin", :type => @type, :config => @config)
 
     reset_buffer
 
