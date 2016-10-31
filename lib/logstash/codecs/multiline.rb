@@ -128,8 +128,8 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   config :max_bytes, :validate => :bytes, :default => "10 MiB"
 
   # The accumulation of multiple lines will be converted to an event when either a
-  # matching new line is seen or there has been no new data appended for this time
-  # auto_flush_interval. No default.  If unset, no auto_flush. Units: seconds
+  # matching new line is seen or there has been no new data appended for this many
+  # seconds. No default.  If unset, no auto_flush. Units: seconds
   config :auto_flush_interval, :validate => :number
 
   public
