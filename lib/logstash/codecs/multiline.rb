@@ -68,7 +68,6 @@ require "logstash/codecs/auto_flush"
 # [source,ruby]
 #     filter {
 #       multiline {
-#         type => "somefiletype"
 #         pattern => "\\$"
 #         what => "next"
 #       }
