@@ -66,11 +66,12 @@ require "logstash/codecs/auto_flush"
 #
 # One more common example is C line continuations (backslash). Here's how to do that:
 # [source,ruby]
-#     filter {
-#       multiline {
-#         type => "somefiletype"
-#         pattern => "\\$"
-#         what => "next"
+#     input {
+#       stdin {
+#         codec => multiline {
+#           pattern => "\\$"
+#           what => "next"
+#         }
 #       }
 #     }
 #
