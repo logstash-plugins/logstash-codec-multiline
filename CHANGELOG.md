@@ -1,3 +1,6 @@
+## 3.0.3
+  - Add event sequencer functionality
+
 ## 3.0.2
   - Fix log levels
 

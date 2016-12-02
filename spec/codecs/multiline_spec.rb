@@ -22,7 +22,7 @@ describe LogStash::Codecs::Multiline do
       end
     end
 
-    it "should be able to handle multiline events with additional lines space-indented" do
+    it "should be able to handle multiline events with additional lines space-indented without sequencing by default" do
       config.update("pattern" => "^\\s", "what" => "previous")
       lines = [ "hello world", "   second line", "another first line" ]
       line_producer.call(lines)
@@ -31,8 +31,49 @@ describe LogStash::Codecs::Multiline do
       expect(events.size).to eq(2)
       expect(events[0].get("message")).to eq "hello world\n   second line"
       expect(events[0].get("tags")).to include("multiline")
+      expect(events[0].get("seq")).to be_nil
       expect(events[1].get("message")).to eq "another first line"
       expect(events[1].get("tags")).to be_nil
+      expect(events[1].get("seq")).to be_nil
+    end
+
+    it "should be able to save the events' sequence number to a custom field name" do
+      config.update("sequencer_enabled" => true, "sequencer_field" => "seqnr", "pattern" => "^\\s", "what" => "previous")
+      lines = [ "1", "2", "3" ]
+      line_producer.call(lines)
+      codec.flush { |e| events << e }
+
+      expect(events.size).to eq(3)
+      events.each do |event|
+        expect(event.get("seqnr")).to eq event.get("message").to_i
+      end
+    end
+
+    it "should be able to sequence events with a custom start and rollover value" do
+      config.update("sequencer_enabled" => true, "sequencer_start" => 10, "sequencer_rollover" => 13, "pattern" => "^\\s", "what" => "previous")
+      lines = [ "10", "11", "12", "10" ]
+      line_producer.call(lines)
+      codec.flush { |e| events << e }
+
+      expect(events.size).to eq(4)
+      events.each do |event|
+        expect(event.get("seq")).to eq event.get("message").to_i
+      end
+    end
+
+    it "should be able to sequence events without counting each line and handle multiline events with additional lines space-indented" do
+      config.update("sequencer_enabled" => true, "pattern" => "^\\s", "what" => "previous")
+      lines = [ "hello world", "   second line", "another first line" ]
+      line_producer.call(lines)
+      codec.flush { |e| events << e }
+
+      expect(events.size).to eq(2)
+      expect(events[0].get("message")).to eq "hello world\n   second line"
+      expect(events[0].get("tags")).to include("multiline")
+      expect(events[0].get("seq")).to eq 1
+      expect(events[1].get("message")).to eq "another first line"
+      expect(events[1].get("tags")).to be_nil
+      expect(events[1].get("seq")).to eq 2
     end
 
     it "should allow custom tag added to multiline events" do
