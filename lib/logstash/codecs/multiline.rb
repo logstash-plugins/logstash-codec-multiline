@@ -78,6 +78,48 @@ require "logstash/codecs/auto_flush"
 # This says that any line ending with a backslash should be combined with the
 # following line.
 #
+# Another use case for the multiline codec is to add sequence numbers to every event.
+# For example, when you need to retain the original order of the events, but your 
+# applications logged multiple events on the exact same timestamp, then there is
+# currently no way to achieve it without using some identifier to sort the events into
+# their original order again.
+#
+# For example:
+# [source,ruby]
+#     input {
+#       stdin {
+#         codec => multiline {
+#           pattern => "^\s"
+#           what => "previous"
+#           sequencer_enabled => true
+#           sequencer_field => "seqnr"
+#           sequencer_start => 0
+#           sequencer_rollover => 10000
+#         }
+#       }
+#     }
+#
+# The `sequencer_enabled` can be `true` or `false (defaults to `false`). If
+# `true`, every event will get a sequence number saved to the `sequencer_field`
+# field.
+#
+# The `sequencer_field` (defaults to `"seq"`) may be used to let the multiline
+# codec save the sequence number to a custom field name.
+#
+# The `sequencer_start` (defaults to `1`) defines the number at which the
+# sequence number would start at and also the number at which it would rollover
+# to, once the `sequencer_rollover` value has been reached.
+#
+# The `sequencer_rollover` (defaults to `100000`) defines the upper boundary
+# at which the number sequence would reset back to `sequencer_start`. Take note
+# that the sequence number can never be equal to `sequencer_rollover` and
+# `sequencer_start` must always be smaller than `sequencer_rollover`.
+#
+# Please take note that the sequencer has only been tested when used in conjunction with
+# the `file` input plugin of Logstash, which has a single worker per file handle.
+# The sequence cannot be guaranteed when Logstash is configured to use multiple pipeline
+# workers and the multiline codec isn't used for an input plugin.
+#
 module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   config_name "multiline"
 
@@ -133,6 +175,22 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   # seconds. No default.  If unset, no auto_flush. Units: seconds
   config :auto_flush_interval, :validate => :number
 
+  # Whether the event should get an incremental sequence number.
+  # If unset, no sequence number field would be set for the events.
+  config :sequencer_enabled, :validate => :boolean, :default => false
+
+  # Defines the field name where the sequence number would be set.
+  config :sequencer_field, :validate => :string, :default => "seq"
+
+  # The number at which the sequencer would start at and also rollover to
+  # once the rollover value has been reached.
+  config :sequencer_start, :validate => :number, :default => 1
+
+  # The number at which the sequencer would rollover to sequence_start again.
+  # The max sequence number would always be smaller than sequencer_rollover,
+  # and never equal to sequencer_rollover.
+  config :sequencer_rollover, :validate => :number, :default => 100000
+
   public
 
   def register
@@ -143,6 +201,7 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
     patterns_path = []
     patterns_path += [LogStash::Patterns::Core.path]
 
+    @sequence = @sequencer_start
     @grok = Grok.new
 
     @patterns_dir = patterns_path.to_a + @patterns_dir
@@ -235,6 +294,7 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
     event.tag @multiline_tag if @multiline_tag && @buffer.size > 1
     event.tag "multiline_codec_max_bytes_reached" if over_maximum_bytes?
     event.tag "multiline_codec_max_lines_reached" if over_maximum_lines?
+    apply_sequence(event) if @sequencer_enabled
     event
   end
 
@@ -290,5 +350,12 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
 
   def auto_flush_runner
     @auto_flush_runner || AutoFlushUnset.new(nil, nil)
+  end
+
+  def apply_sequence(event)
+    event.set(@sequencer_field, @sequence)
+
+    @sequence += 1
+    @sequence = @sequencer_start if @sequence >= @sequencer_rollover
   end
 end end end # class LogStash::Codecs::Multiline
