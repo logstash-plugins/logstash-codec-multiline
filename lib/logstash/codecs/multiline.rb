@@ -7,6 +7,12 @@ require "logstash/codecs/auto_flush"
 # The multiline codec will collapse multiline messages and merge them into a
 # single event.
 #
+# IMPORTANT: If you are using a Logstash input plugin that supports multiple
+# hosts, such as the <<plugins-inputs-beats>> input plugin, you should not use
+# the multiline codec to handle multiline events. Doing so may result in the
+# mixing of streams and corrupted event data. In this situation, you need to
+# handle multiline events before sending the event data to Logstash. 
+#
 # The original goal of this codec was to allow joining of multiline messages
 # from files into a single event. For example, joining Java exception and
 # stacktrace messages into a single event.
