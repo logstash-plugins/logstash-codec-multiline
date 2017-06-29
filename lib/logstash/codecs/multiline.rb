@@ -198,7 +198,7 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
     text.split("\n").each do |line|
       match = @grok.match(line)
       @logger.debug("Multiline", :pattern => @pattern, :text => line,
-                    :match => !match.nil?, :negate => @negate)
+                    :match => (match != false), :negate => @negate)
 
       # Add negate option
       match = (match and !@negate) || (!match and @negate)
