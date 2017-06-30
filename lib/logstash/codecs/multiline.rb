@@ -11,7 +11,7 @@ require "logstash/codecs/auto_flush"
 # hosts, such as the <<plugins-inputs-beats>> input plugin, you should not use
 # the multiline codec to handle multiline events. Doing so may result in the
 # mixing of streams and corrupted event data. In this situation, you need to
-# handle multiline events before sending the event data to Logstash. 
+# handle multiline events before sending the event data to Logstash.
 #
 # The original goal of this codec was to allow joining of multiline messages
 # from files into a single event. For example, joining Java exception and
@@ -238,7 +238,7 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
 
   def merge_events
     event = LogStash::Event.new(LogStash::Event::TIMESTAMP => @time, "message" => @buffer.join(NL))
-    event.tag @multiline_tag if @multiline_tag && @buffer.size > 1
+    event.tag @multiline_tag if !@multiline_tag.empty? && @buffer.size > 1
     event.tag "multiline_codec_max_bytes_reached" if over_maximum_bytes?
     event.tag "multiline_codec_max_lines_reached" if over_maximum_lines?
     event
