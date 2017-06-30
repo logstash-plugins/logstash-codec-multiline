@@ -1,3 +1,6 @@
+## 3.0.6
+  - Fix debug output for grok match
+
 ## 3.0.3
   - Docs: Add note indicating that the multiline codec should not be used with input plugins that support multiple hosts
 
