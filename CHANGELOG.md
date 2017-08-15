@@ -1,3 +1,6 @@
+## 3.0.7
+  - Fix some documentation issues
+
 ## 3.0.6
   - Fix debug output for grok match
 
