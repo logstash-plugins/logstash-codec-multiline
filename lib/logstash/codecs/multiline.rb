@@ -297,4 +297,9 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   def auto_flush_runner
     @auto_flush_runner || AutoFlushUnset.new(nil, nil)
   end
+
+  def initialize_copy(source)
+    super
+    register
+  end
 end end end # class LogStash::Codecs::Multiline
