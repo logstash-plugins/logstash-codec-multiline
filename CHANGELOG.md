@@ -1,3 +1,6 @@
+## 3.0.9
+  - Fixed concurrency issue causing random failures when multiline codec was used together with a multi-threaded input plugin
+
 ## 3.0.8
   - Update gemspec summary
 
