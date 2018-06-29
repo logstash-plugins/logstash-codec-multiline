@@ -1,3 +1,6 @@
+## 3.0.10
+  - Fixed [multiline codec - #32](https://github.com/logstash-plugins/logstash-codec-multiline/issues/32) `no method map_cleanup for nil class` error when shutting down.
+
 ## 3.0.9
   - Fixed concurrency issue causing random failures when multiline codec was used together with a multi-threaded input plugin
 
