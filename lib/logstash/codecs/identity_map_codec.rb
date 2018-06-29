@@ -52,6 +52,7 @@ module LogStash module Codecs class IdentityMapCodec
         while running? do
           sleep @interval
           break if !running?
+          break if @listener.nil?
           @listener.send(@method_symbol)
         end
       end
@@ -59,7 +60,7 @@ module LogStash module Codecs class IdentityMapCodec
     end
 
     def running?
-      @running.value
+      @running.true?
     end
 
     def stop
