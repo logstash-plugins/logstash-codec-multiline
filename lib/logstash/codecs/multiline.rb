@@ -142,6 +142,10 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   # Change the delimiter that separates lines
   config :delimiter, :validate => :string, :default => "\n"
 
+  # Assume data received from input plugin line based, not streamed. For some input plugins
+  # like stdin or tcp/udp data is streamed and not line based and this option should be set to true.
+  config :streaming_input, :validate => :boolean, :default  => false
+
   public
 
   def register
@@ -200,6 +204,7 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   end
 
   def decode(data, &block)
+    data = data + @delimiter unless streaming_input
     @tokenizer.extract(data).each do |line|
       handle_line(@converter.convert(line), &block)
     end

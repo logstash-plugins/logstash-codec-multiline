@@ -16,7 +16,7 @@ describe LogStash::Codecs::Multiline do
     let(:line_producer) do
       lambda do |lines|
         lines.each do |line|
-          codec.decode(line + "\n") do |event|
+          codec.decode(line) do |event|
             events << event
           end
         end
@@ -83,7 +83,7 @@ describe LogStash::Codecs::Multiline do
         lines.each do |line|
           expect(line.encoding.name).to eq "UTF-8"
           expect(line.valid_encoding?).to be_truthy
-          codec.decode(line + "\n") { |event| events << event }
+          codec.decode(line) { |event| events << event }
         end
         codec.flush { |e| events << e }
         expect(events.size).to eq 2
@@ -101,7 +101,7 @@ describe LogStash::Codecs::Multiline do
           expect(line.encoding.name).to eq "UTF-8"
           expect(line.valid_encoding?).to eq false
 
-          codec.decode(line + "\n") { |event| events << event }
+          codec.decode(line) { |event| events << event }
         end
         codec.flush { |e| events << e }
         expect(events.size).to eq 2
@@ -128,7 +128,7 @@ describe LogStash::Codecs::Multiline do
           expect(line.encoding.name).to eq "ISO-8859-1"
           expect(line.valid_encoding?).to eq true
 
-          codec.decode(line + "\n") { |event| events << event }
+          codec.decode(line) { |event| events << event }
         end
         codec.flush { |e| events << e }
         expect(events.size).to eq 2
@@ -154,7 +154,7 @@ describe LogStash::Codecs::Multiline do
           expect(line.encoding.name).to eq "ASCII-8BIT"
           expect(line.valid_encoding?).to eq true
 
-          codec.decode(line + "\n") { |event| events << event }
+          codec.decode(line) { |event| events << event }
         end
         codec.flush { |e| events << e }
         expect(events.size).to eq 2
@@ -232,7 +232,7 @@ describe LogStash::Codecs::Multiline do
         #create a listener that holds upstream state
         listener = listener_class.new(events, codec, path)
         lines[path].each do |data|
-          listener.accept(data + "\n")
+          listener.accept(data)
         end
       end
     end
