@@ -139,11 +139,17 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   # seconds. No default.  If unset, no auto_flush. Units: seconds
   config :auto_flush_interval, :validate => :number
 
+  # Change the delimiter that separates lines
+  config :delimiter, :validate => :string, :default => "\n"
+
   public
 
   def register
     require "grok-pure" # rubygem 'jls-grok'
     require 'logstash/patterns/core'
+    require "logstash/util/buftok"
+
+    @tokenizer = FileWatch::BufferedTokenizer.new(@delimiter)
 
     # Detect if we are running from a jarfile, pick the right path.
     patterns_path = []
@@ -193,25 +199,36 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
     end
   end
 
-  def decode(text, &block)
-    text = @converter.convert(text)
-    text.split("\n").each do |line|
-      match = @grok.match(line)
-      @logger.debug("Multiline", :pattern => @pattern, :text => line,
-                    :match => (match != false), :negate => @negate)
-
-      # Add negate option
-      match = (match and !@negate) || (!match and @negate)
-      @handler.call(line, match, &block)
+  def decode(data, &block)
+    @tokenizer.extract(data).each do |line|
+      handle_line(@converter.convert(line), &block)
     end
-  end # def decode
+  end
 
   def buffer(text)
     @buffer_bytes += text.bytesize
     @buffer.push(text)
   end
 
+  def handle_line(line, &block)
+    match = @grok.match(line)
+    @logger.debug("Multiline", :pattern => @pattern, :text => line, :match => (match != false), :negate => @negate)
+
+    # Add negate option
+    match = (match and !@negate) || (!match and @negate)
+    @handler.call(line, match, &block)
+  end
+
   def flush(&block)
+    remainder = @tokenizer.flush
+    if !remainder.empty?
+      handle_line(@converter.convert(remainder), &block)
+    end
+
+    flush_multiline(&block)
+  end
+
+  def flush_multiline(&block)
     if block_given? && @buffer.any?
       no_error = true
       events = merge_events
@@ -231,7 +248,14 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   def auto_flush(listener = @last_seen_listener)
     return if listener.nil?
 
-    flush do |event|
+    remainder = @tokenizer.flush
+    if !remainder.empty?
+      handle_line(remainder) do |event|
+        listener.process_event(event)
+      end
+    end
+
+    flush_multiline do |event|
       listener.process_event(event)
     end
   end
@@ -260,11 +284,11 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   def do_next(text, matched, &block)
     buffer(text)
     auto_flush_runner.start
-    flush(&block) if !matched || buffer_over_limits?
+    flush_multiline(&block) if !matched || buffer_over_limits?
   end
 
   def do_previous(text, matched, &block)
-    flush(&block) if !matched || buffer_over_limits?
+    flush_multiline(&block) if !matched || buffer_over_limits?
     auto_flush_runner.start
     buffer(text)
   end

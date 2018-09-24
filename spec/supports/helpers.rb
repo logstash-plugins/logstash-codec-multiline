@@ -5,7 +5,7 @@ def decode_events
 
   events = []
   random_number_of_events.times do |n|
-    multiline.decode(sample_event) { |event| events << event }
+    multiline.decode(sample_event + "\n") { |event| events << event }
   end
 
   # Grab the in-memory-event
