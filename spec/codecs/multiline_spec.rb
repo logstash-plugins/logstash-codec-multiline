@@ -94,6 +94,8 @@ describe LogStash::Codecs::Multiline do
         end
       end
 
+      # temporarily disabled - it looks like the java-ified BufferedTokenizer introduced a
+      # regression WRT non UTF-8 data. I will investigate.
       xit "should escape invalid sequences" do
         config.update("pattern" => "^\\s", "what" => "previous")
         lines = [ "foo \xED\xB9\x81\xC3", "bar \xAD" ]
@@ -316,7 +318,7 @@ describe LogStash::Codecs::Multiline do
 
         assert_produced_events("en.log", auto_flush_interval + 0.1) do
           # wait for auto_flush
-           expect(events[0]).to match_path_and_line("en.log", lines["en.log"])
+          expect(events[0]).to match_path_and_line("en.log", lines["en.log"])
         end
 
         assert_produced_events("de.log", auto_flush_interval - 0.3) do
