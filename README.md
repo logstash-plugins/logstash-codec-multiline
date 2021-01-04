@@ -1,6 +1,6 @@
 # Logstash Plugin
 
-[![Travis Build Status](https://travis-ci.org/logstash-plugins/logstash-codec-multiline.svg)](https://travis-ci.org/logstash-plugins/logstash-codec-multiline)
+[![Travis Build Status](https://travis-ci.com/logstash-plugins/logstash-codec-multiline.svg)](https://travis-ci.com/logstash-plugins/logstash-codec-multiline)
 
 This is a plugin for [Logstash](https://github.com/elastic/logstash).
 
