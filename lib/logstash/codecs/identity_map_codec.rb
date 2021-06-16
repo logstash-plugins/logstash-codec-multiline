@@ -1,7 +1,7 @@
 # encoding: utf-8
 require "logstash/namespace"
-require "thread_safe"
-require "concurrent"
+require "concurrent/atomic/atomic_boolean"
+require "concurrent/map"
 
 # This class is a Codec duck type
 # Using Composition, it maps from a stream identity to
@@ -109,7 +109,7 @@ module LogStash module Codecs class IdentityMapCodec
   def initialize(codec)
     @base_codec = codec
     @base_codecs = [codec]
-    @identity_map = ThreadSafe::Hash.new &method(:codec_builder)
+    @identity_map = Concurrent::Hash.new &method(:codec_builder)
     @max_identities = MAX_IDENTITIES
     @evict_timeout = EVICT_TIMEOUT
     cleaner_interval(CLEANER_INTERVAL)
