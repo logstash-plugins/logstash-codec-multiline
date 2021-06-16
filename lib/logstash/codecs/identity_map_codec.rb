@@ -48,12 +48,16 @@ module LogStash module Codecs class IdentityMapCodec
     def start
       return self if running?
       @running.make_true
-      @thread = Thread.new() do
+      @thread = Thread.start do
+        Thread.current.tap do |thread|
+          # to be able to distinguish cleaner from auto_flusher in thread dumps
+          thread.name = @method_symbol.to_s if thread.respond_to?(:name)
+        end
         while running? do
-          sleep @interval
+          sleep @interval # second thread still sleep (park-ed here)
           break if !running?
-          break if @listener.nil?
-          @listener.send(@method_symbol)
+          break if (listener = @listener).nil?
+          listener.send(@method_symbol)
         end
       end
       self
@@ -66,9 +70,14 @@ module LogStash module Codecs class IdentityMapCodec
     def stop
       return if !running?
       @running.make_false
-      if @thread.alive?
-        @thread.wakeup
-        @thread.join
+      while @thread.alive?
+        begin
+          @thread.wakeup
+        rescue ThreadError
+          # thread might drop dead since the alive? check
+        else
+          @thread.join(0.1) # raises $! if there was any
+        end
       end
       @listener = nil
     end

@@ -124,6 +124,34 @@ describe LogStash::Codecs::IdentityMapCodec do
         expect(codec2.trace_for(:close)).to be_truthy
       end
     end
+
+    context '(multiple threads)' do
+      let(:thread_count) { (ENV['THREAD_COUNT'] || 100).to_i }
+
+      let(:running_threads) do
+        thread_count.times.map do
+          Thread.start(described_class.new(codec)) do |codec|
+            codec.decode(arg1, stream1)
+            Thread.pass
+            codec.close
+          end
+        end
+      end
+
+      let(:stop_timeout) { 5 }
+
+      it 'does not linger around' do
+        running_threads.each do |thread|
+          next unless thread.alive?
+          sleep(0.5)
+          if thread.alive?
+            sleep(stop_timeout)
+            fail "codec did not stop in #{stop_timeout}s" if thread.alive?
+          end
+        end
+      end
+
+    end
   end
 
   describe "over capacity protection" do
