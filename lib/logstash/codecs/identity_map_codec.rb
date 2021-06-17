@@ -54,7 +54,7 @@ module LogStash module Codecs class IdentityMapCodec
           thread.name = @method_symbol.to_s if thread.respond_to?(:name)
         end
         while running? do
-          sleep @interval # second thread still sleep (park-ed here)
+          sleep @interval
           break if !running?
           break if (listener = @listener).nil?
           listener.send(@method_symbol)
