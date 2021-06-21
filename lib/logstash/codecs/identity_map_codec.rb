@@ -49,10 +49,9 @@ module LogStash module Codecs class IdentityMapCodec
       return self if running?
       @running.make_true
       @thread = Thread.start do
-        Thread.current.tap do |thread|
-          # to be able to distinguish cleaner from auto_flusher in thread dumps
-          thread.name = @method_symbol.to_s if thread.respond_to?(:name)
-        end
+        class_name = @listener.class.name.split('::').last # IdentityMapCodec
+        LogStash::Util.set_thread_name("#{class_name}##{@method_symbol}")
+
         while running? do
           sleep @interval
           break if !running?
