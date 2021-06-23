@@ -1,7 +1,7 @@
 # encoding: utf-8
 require "logstash/namespace"
-require "thread_safe"
-require "concurrent"
+require "concurrent/atomic/atomic_boolean"
+require "concurrent/map"
 
 # This class is a Codec duck type
 # Using Composition, it maps from a stream identity to
@@ -48,12 +48,15 @@ module LogStash module Codecs class IdentityMapCodec
     def start
       return self if running?
       @running.make_true
-      @thread = Thread.new() do
+      @thread = Thread.start do
+        class_name = @listener.class.name.split('::').last # IdentityMapCodec
+        LogStash::Util.set_thread_name("#{class_name}##{@method_symbol}")
+
         while running? do
           sleep @interval
           break if !running?
-          break if @listener.nil?
-          @listener.send(@method_symbol)
+          break if (listener = @listener).nil?
+          listener.send(@method_symbol)
         end
       end
       self
@@ -66,9 +69,14 @@ module LogStash module Codecs class IdentityMapCodec
     def stop
       return if !running?
       @running.make_false
-      if @thread.alive?
-        @thread.wakeup
-        @thread.join
+      while @thread.alive?
+        begin
+          @thread.wakeup
+        rescue ThreadError
+          # thread might drop dead since the alive? check
+        else
+          @thread.join(0.1) # raises $! if there was any
+        end
       end
       @listener = nil
     end
@@ -109,7 +117,7 @@ module LogStash module Codecs class IdentityMapCodec
   def initialize(codec)
     @base_codec = codec
     @base_codecs = [codec]
-    @identity_map = ThreadSafe::Hash.new &method(:codec_builder)
+    @identity_map = Concurrent::Hash.new &method(:codec_builder)
     @max_identities = MAX_IDENTITIES
     @evict_timeout = EVICT_TIMEOUT
     cleaner_interval(CLEANER_INTERVAL)
