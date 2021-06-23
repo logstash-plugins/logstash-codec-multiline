@@ -1,3 +1,6 @@
+## 3.0.11
+  - Fix: avoid long thread sleeps on codec close [#67](https://github.com/logstash-plugins/logstash-codec-multiline/pull/67)
+
 ## 3.0.10
   - Fixed [multiline codec - #32](https://github.com/logstash-plugins/logstash-codec-multiline/issues/32) `no method map_cleanup for nil class` error when shutting down.
 
