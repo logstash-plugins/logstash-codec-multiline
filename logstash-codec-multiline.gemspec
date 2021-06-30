@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
 
   # Gem dependencies
   s.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
-
+  s.add_runtime_dependency 'logstash-mixin-event_support', '~> 1.0'
   s.add_runtime_dependency 'logstash-patterns-core'
   s.add_runtime_dependency 'jls-grok', '~> 0.11.1'
   s.add_runtime_dependency 'concurrent-ruby'
