@@ -3,6 +3,7 @@ require "logstash/codecs/base"
 require "logstash/util/charset"
 require "logstash/timestamp"
 require "logstash/codecs/auto_flush"
+require 'logstash/plugin_mixins/ecs_compatibility_support'
 require 'logstash/plugin_mixins/event_support/event_factory_adapter'
 
 # The multiline codec will collapse multiline messages and merge them into a
@@ -87,6 +88,7 @@ require 'logstash/plugin_mixins/event_support/event_factory_adapter'
 #
 module LogStash module Codecs class Multiline < LogStash::Codecs::Base
 
+  include LogStash::PluginMixins::ECSCompatibilitySupport(:disabled, :v1, :v8 => :v1)
   include LogStash::PluginMixins::EventSupport::EventFactoryAdapter
 
   config_name "multiline"
@@ -144,6 +146,13 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   config :auto_flush_interval, :validate => :number
 
   public
+
+
+  def initialize(*params)
+    super
+
+    @original_field = ecs_select[disabled: nil, v1: '[event][original]']
+  end
 
   def register
     require "grok-pure" # rubygem 'jls-grok'
@@ -241,7 +250,9 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   end
 
   def merge_events
-    event = event_factory.new_event(LogStash::Event::TIMESTAMP => @time, "message" => @buffer.join(NL))
+    message = @buffer.join(NL)
+    event = event_factory.new_event(LogStash::Event::TIMESTAMP => @time, "message" => message)
+    event.set @original_field, message.dup.freeze if @original_field
     event.tag @multiline_tag if !@multiline_tag.empty? && @buffer.size > 1
     event.tag "multiline_codec_max_bytes_reached" if over_maximum_bytes?
     event.tag "multiline_codec_max_lines_reached" if over_maximum_lines?
