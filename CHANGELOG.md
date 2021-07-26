@@ -1,3 +1,6 @@
+## 3.1.0
+  - Feat: ECS compatibility [#69](https://github.com/logstash-plugins/logstash-codec-multiline/pull/69)
+
 ## 3.0.11
   - Fix: avoid long thread sleeps on codec close [#67](https://github.com/logstash-plugins/logstash-codec-multiline/pull/67)
 

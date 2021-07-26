@@ -7,8 +7,9 @@ require_relative "../supports/helpers.rb"
 # above helper also defines a subclass of Multiline
 # called MultilineRspec that exposes the internal buffer
 # and a Logger Mock
+require 'logstash/plugin_mixins/ecs_compatibility_support/spec_helper'
 
-describe LogStash::Codecs::Multiline do
+describe LogStash::Codecs::Multiline, :ecs_compatibility_support do
   context "#decode" do
     let(:config) { {} }
     let(:codec) { LogStash::Codecs::Multiline.new(config).tap {|c| c.register } }
@@ -23,17 +24,35 @@ describe LogStash::Codecs::Multiline do
       end
     end
 
-    it "should be able to handle multiline events with additional lines space-indented" do
-      config.update("pattern" => "^\\s", "what" => "previous")
-      lines = [ "hello world", "   second line", "another first line" ]
-      line_producer.call(lines)
-      codec.flush { |e| events << e }
+    ecs_compatibility_matrix(:disabled, :v1, :v8) do |ecs_select|
 
-      expect(events.size).to eq(2)
-      expect(events[0].get("message")).to eq "hello world\n   second line"
-      expect(events[0].get("tags")).to include("multiline")
-      expect(events[1].get("message")).to eq "another first line"
-      expect(events[1].get("tags")).to be_nil
+      before(:each) do
+        allow_any_instance_of(described_class).to receive(:ecs_compatibility).and_return(ecs_compatibility)
+      end
+
+      let(:config) { super().merge "pattern" => "^\\s", "what" => "previous" }
+      let(:lines) { [ "hello world", "   second line", "another first line" ] }
+
+      let(:expected_first_multiline) { "hello world\n   second line" }
+
+      before do
+        line_producer.call(lines)
+        codec.flush { |e| events << e }
+      end
+
+      it "should be able to handle multiline events with additional lines space-indented" do
+        expect(events.size).to eq(2)
+        expect(events[0].get("message")).to eql expected_first_multiline
+        expect(events[0].get("tags")).to include("multiline")
+        expect(events[1].get("message")).to eql "another first line"
+        expect(events[1].get("tags")).to be_nil
+      end
+
+      it "sets event.original in ECS mode" do
+        expect(events.size).to eq(2)
+        expect(events[0].get("[event][original]")).to eql expected_first_multiline
+      end if ecs_select.active_mode != :disabled
+
     end
 
     it "should allow custom tag added to multiline events" do

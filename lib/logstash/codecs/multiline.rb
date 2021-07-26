@@ -3,6 +3,8 @@ require "logstash/codecs/base"
 require "logstash/util/charset"
 require "logstash/timestamp"
 require "logstash/codecs/auto_flush"
+require 'logstash/plugin_mixins/ecs_compatibility_support'
+require 'logstash/plugin_mixins/event_support/event_factory_adapter'
 
 # The multiline codec will collapse multiline messages and merge them into a
 # single event.
@@ -85,6 +87,10 @@ require "logstash/codecs/auto_flush"
 # following line.
 #
 module LogStash module Codecs class Multiline < LogStash::Codecs::Base
+
+  include LogStash::PluginMixins::ECSCompatibilitySupport(:disabled, :v1, :v8 => :v1)
+  include LogStash::PluginMixins::EventSupport::EventFactoryAdapter
+
   config_name "multiline"
 
   # The regular expression to match.
@@ -140,6 +146,13 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   config :auto_flush_interval, :validate => :number
 
   public
+
+
+  def initialize(*params)
+    super
+
+    @original_field = ecs_select[disabled: nil, v1: '[event][original]']
+  end
 
   def register
     require "grok-pure" # rubygem 'jls-grok'
@@ -197,8 +210,8 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
     text = @converter.convert(text)
     text.split("\n").each do |line|
       match = @grok.match(line)
-      @logger.debug("Multiline", :pattern => @pattern, :text => line,
-                    :match => (match != false), :negate => @negate)
+      @logger.debug? && @logger.debug("Multiline", :text => line, :pattern => @pattern,
+                                      :match => (match != false), :negate => @negate)
 
       # Add negate option
       match = (match and !@negate) || (!match and @negate)
@@ -214,9 +227,9 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   def flush(&block)
     if block_given? && @buffer.any?
       no_error = true
-      events = merge_events
+      event = merge_events
       begin
-        yield events
+        yield event
       rescue ::Exception => e
         # need to rescue everything
         # likliest cause: backpressure or timeout by exception
@@ -237,7 +250,9 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   end
 
   def merge_events
-    event = LogStash::Event.new(LogStash::Event::TIMESTAMP => @time, "message" => @buffer.join(NL))
+    message = @buffer.join(NL)
+    event = event_factory.new_event(LogStash::Event::TIMESTAMP => @time, "message" => message)
+    event.set @original_field, message.dup.freeze if @original_field
     event.tag @multiline_tag if !@multiline_tag.empty? && @buffer.size > 1
     event.tag "multiline_codec_max_bytes_reached" if over_maximum_bytes?
     event.tag "multiline_codec_max_lines_reached" if over_maximum_lines?
