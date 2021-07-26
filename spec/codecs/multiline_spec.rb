@@ -24,7 +24,7 @@ describe LogStash::Codecs::Multiline, :ecs_compatibility_support do
       end
     end
 
-    ecs_compatibility_matrix(:disabled, :v1, :v8 => :v1) do |ecs_select|
+    ecs_compatibility_matrix(:disabled, :v1, :v8) do |ecs_select|
 
       before(:each) do
         allow_any_instance_of(described_class).to receive(:ecs_compatibility).and_return(ecs_compatibility)
