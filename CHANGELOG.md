@@ -1,3 +1,6 @@
+## 3.1.1
+  - Fix: avoid reusing per-identity codec instances for differing identities. Removes a very minor optimization so that stateful codecs like CSV can work reliably. 
+
 ## 3.1.0
   - Feat: ECS compatibility [#69](https://github.com/logstash-plugins/logstash-codec-multiline/pull/69)
 
