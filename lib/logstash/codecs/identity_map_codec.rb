@@ -290,6 +290,7 @@ module LogStash module Codecs class IdentityMapCodec
   end
 
   def codec_without_usage_update(identity)
+    return base_codec if identity.nil? # mirror optimization in `stream_codec`
     find_codec_value(identity).codec
   end
 
@@ -336,7 +337,7 @@ module LogStash module Codecs class IdentityMapCodec
   end
 
   def codec_builder(hash, k)
-    codec = hash.empty? ? @base_codec : @base_codec.clone
+    codec = @base_codec.clone
     codec.use_mapper_auto_flush if using_mapped_auto_flush?
     compo = CodecValue.new(codec).tap do |o|
       now = Time.now

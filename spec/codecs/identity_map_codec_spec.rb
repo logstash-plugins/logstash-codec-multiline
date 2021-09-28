@@ -29,7 +29,8 @@ describe LogStash::Codecs::IdentityMapCodec do
     let(:stream1) { nil }
 
     it "transparently refers to the original codec" do
-      expect(codec).to eql(codec1)
+      resolved_codec = demuxer.codec_without_usage_update(stream1)
+      expect(resolved_codec).to eq(codec)
     end
   end
 
@@ -37,8 +38,8 @@ describe LogStash::Codecs::IdentityMapCodec do
 
     before { demuxer.decode(arg1, stream1) }
 
-    it "the first identity refers to the original codec" do
-      expect(codec).to eql(codec1)
+    it "the first identity refers to a copy of original codec" do
+      expect(codec1).to_not eql(codec)
     end
   end
 
@@ -212,8 +213,11 @@ describe LogStash::Codecs::IdentityMapCodec do
       let(:demuxer) { described_class.new(codec).evict_timeout(1).cleaner_interval(1) }
       it "the cleaner evicts the codec and flushes it first" do
         demuxer.decode(Object.new, "stream1"){|*| 42}
+        mapped_codec = demuxer.codec_without_usage_update("stream1") # get before eviction
+
         sleep(2.1)
-        expect(codec.trace_for(:flush)).to eq(42)
+
+        expect(mapped_codec.trace_for(:flush)).to eq(42)
         expect(demuxer.identity_map.keys).not_to include("stream1")
       end
     end
@@ -227,9 +231,12 @@ describe LogStash::Codecs::IdentityMapCodec do
       end
       it "the cleaner evicts the codec and flushes it first using the eviction_block" do
         demuxer.decode(Object.new, "stream1"){|*| 42}
+        mapped_codec = demuxer.codec_without_usage_update("stream1") # get before eviction
+
         sleep(2.1)
-        expect(codec.trace_for(:flush)).to eq(24)
-        expect(demuxer.identity_map.keys).not_to include("stream1")
+
+        expect(mapped_codec.trace_for(:flush)).to eq(24)
+        expect(demuxer.identity_map.keys).to_not include("stream1")
       end
     end
   end
@@ -251,7 +258,9 @@ describe LogStash::Codecs::IdentityMapCodec do
         it "no events are generated (the line is buffered)" do
           expect(imc.identity_count).to eq(1)
           expect(queue.size).to eq(0)
-          expect(mlc.internal_buffer[0]).to eq("foo")
+
+          mapped_codec = imc.codec_without_usage_update(identity)
+          expect(mapped_codec.internal_buffer[0]).to eq("foo")
         end
       end
 
