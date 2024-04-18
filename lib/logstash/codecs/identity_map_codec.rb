@@ -320,7 +320,7 @@ module LogStash module Codecs class IdentityMapCodec
   def record_codec_usage(identity)
     check_map_limits
     # only start the cleaner if streams are in use
-    # continuous calls to start are OK if this codec instance is accessed by a single thread
+    # continuous calls to start are OK if this codec method is accessed by a single thread
     cleaner.start
     auto_flusher.start
     compo = find_codec_value(identity)
