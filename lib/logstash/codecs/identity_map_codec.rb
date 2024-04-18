@@ -42,15 +42,20 @@ module LogStash module Codecs class IdentityMapCodec
     def initialize(listener, interval, method_symbol)
       @listener, @interval = listener, interval
       @method_symbol = method_symbol
-      @running = Concurrent::AtomicBoolean.new(false)
+      @running = Concurrent::AtomicBoolean.new(true)
     end
 
+    # The goal of periodic runner is to have a single thread to do clean up / auto flush
+    # This method is expected to access by a single thread,
+    # otherwise, multiple Thread.start could create more than one periodic runner
     def start
-      return self if running?
-      @running.make_true
+      return self unless running?
+      return self if running? && !@thread.nil?
+
       @thread = Thread.start do
         class_name = @listener.class.name.split('::').last # IdentityMapCodec
         LogStash::Util.set_thread_name("#{class_name}##{@method_symbol}")
+        @listener.logger.debug("Start periodic runner")
 
         while running? do
           sleep @interval
@@ -67,9 +72,11 @@ module LogStash module Codecs class IdentityMapCodec
     end
 
     def stop
-      return if !running?
+      return unless running?
+
+      @listener.logger.debug("Stop periodic runner")
       @running.make_false
-      while @thread.alive?
+      while @thread&.alive?
         begin
           @thread.wakeup
         rescue ThreadError
@@ -313,7 +320,7 @@ module LogStash module Codecs class IdentityMapCodec
   def record_codec_usage(identity)
     check_map_limits
     # only start the cleaner if streams are in use
-    # continuous calls to start are OK
+    # continuous calls to start are OK if this codec instance is accessed by a single thread
     cleaner.start
     auto_flusher.start
     compo = find_codec_value(identity)
