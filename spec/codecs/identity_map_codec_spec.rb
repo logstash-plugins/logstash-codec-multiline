@@ -299,3 +299,79 @@ describe LogStash::Codecs::IdentityMapCodec do
     end
   end
 end
+
+describe LogStash::Codecs::IdentityMapCodec::PeriodicRunner do
+  let(:listener) do
+    double('Listener', logger: double('Logger').as_null_object,
+           some_method: double('method_symbol').as_null_object)
+  end
+  let(:interval) { 1 }
+  let(:method_symbol) { :some_method }
+  subject(:runner) { described_class.new(listener, interval, method_symbol) }
+
+  before(:all) do
+    Thread.abort_on_exception = true
+  end
+
+  describe "normal shutdown" do
+    it "starts first and stops successfully" do
+      start_thread = Thread.start do
+        runner.start
+      end
+
+      stop_thread = Thread.start do
+        sleep(1)
+        runner.stop
+      end
+
+      start_thread.join
+      stop_thread.join
+
+      expect(runner.instance_variable_get('@listener')).to be_nil
+    end
+  end
+
+  describe "race condition" do
+    let(:atomic_bool) { Concurrent::AtomicBoolean.new(true) }
+    let(:running) { double('AtomicBooleanStub') }
+
+    before do
+      allow(running).to receive(:make_true) do
+        atomic_bool.make_true
+      end
+
+      allow(running).to receive(:make_false) do
+        atomic_bool.make_false
+        sleep(2)
+      end
+
+      allow(running).to receive(:true?) do
+        atomic_bool.true?
+      end
+    end
+
+    before :each do
+      runner.instance_variable_set('@running', running)
+    end
+
+    it "starts several times and stops successfully" do
+      start_thread = Thread.start do
+        5.times do
+          runner.start
+          sleep(1)
+        end
+      end
+
+      stop_thread = Thread.start do
+        sleep(1) # give time to runner start
+        runner.stop
+      end
+
+      start_thread.join
+      stop_thread.join
+
+      expect(runner.instance_variable_get('@listener')).to be_nil
+      expect(runner.instance_variable_get('@thread').alive?).to be_falsey
+    end
+  end
+end
