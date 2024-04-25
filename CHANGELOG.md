@@ -1,3 +1,6 @@
+## 3.1.2
+  - Fix: periodic runner fails to stop and prevent pipeline shutdown [#72](https://github.com/logstash-plugins/logstash-codec-multiline/pull/72)
+
 ## 3.1.1
   - Fix: avoid reusing per-identity codec instances for differing identities. Removes a very minor optimization so that stateful codecs like CSV can work reliably [#70](https://github.com/logstash-plugins/logstash-codec-multiline/pull/70)
 
