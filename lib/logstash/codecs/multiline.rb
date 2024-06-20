@@ -145,6 +145,9 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   # seconds. No default.  If unset, no auto_flush. Units: seconds
   config :auto_flush_interval, :validate => :number
 
+  # Whether to split original message to lines.
+  config :split_original, :validate => :boolean, :default => true
+
   public
 
 
@@ -208,7 +211,9 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
 
   def decode(text, &block)
     text = @converter.convert(text)
-    text.split("\n").each do |line|
+
+    lines = @split_original ? text.split("\n") : [text]
+    lines.each do |line|
       match = @grok.match(line)
       @logger.debug? && @logger.debug("Multiline", :text => line, :pattern => @pattern,
                                       :match => (match != false), :negate => @negate)
@@ -285,7 +290,7 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   end
 
   def over_maximum_lines?
-    @buffer.size > @max_lines
+    @buffer.size >= @max_lines
   end
 
   def over_maximum_bytes?
