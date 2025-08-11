@@ -1,3 +1,6 @@
+## 3.1.3
+  - Fix: concurrency issue with multiline codec and other grok-based plugins [#TBD](https://github.com/logstash-plugins/logstash-codec-multiline/pull/TBD)
+
 ## 3.1.2
   - Fix: periodic runner fails to stop and prevent pipeline shutdown [#72](https://github.com/logstash-plugins/logstash-codec-multiline/pull/72)
 

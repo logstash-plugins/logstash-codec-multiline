@@ -5,6 +5,7 @@ require "logstash/timestamp"
 require "logstash/codecs/auto_flush"
 require 'logstash/plugin_mixins/ecs_compatibility_support'
 require 'logstash/plugin_mixins/event_support/event_factory_adapter'
+require "grok-pure" # rubygem 'jls-grok'
 
 # The multiline codec will collapse multiline messages and merge them into a
 # single event.
@@ -155,7 +156,6 @@ module LogStash module Codecs class Multiline < LogStash::Codecs::Base
   end
 
   def register
-    require "grok-pure" # rubygem 'jls-grok'
     require 'logstash/patterns/core'
 
     # Detect if we are running from a jarfile, pick the right path.
