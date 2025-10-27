@@ -271,8 +271,9 @@ describe LogStash::Codecs::IdentityMapCodec do
           l_2 = Mlc::LineListener.new(queue, imc, "stream3").tap {|o| o.accept("baz")}
         end
         it "three events are auto flushed from three different identities/codecs" do
-          sleep 1 # wait for auto_flush 2 PeriodicRunner cycles to ensure it is executed before assertion.
-          expect(queue.size).to eq(3)
+          sleep 0.6 # wait for auto_flush 1 PeriodicRunner cycle before assertion.
+          # try a few times with exponential backoff as timing is not 100% guaranteed
+          try(10) { expect(queue.size).to eq(3) }
           e1, e2, e3 = queue
           expect(e1.get("path")).to eq("stream1")
           expect(e1.get("message")).to eq("foo")
