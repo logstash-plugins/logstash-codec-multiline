@@ -66,7 +66,7 @@ module Mlc
   end
 
   class TracerBase
-    def initialize() @tracer = []; end
+    def initialize() @tracer = Concurrent::Array.new; end
 
     def trace_for(symbol)
       params = @tracer.assoc(symbol)
